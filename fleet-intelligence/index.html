@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fleet Intelligence</title>
+</head>
+<body>
+  <style>
+    :root {
+      color-scheme: light;
+      --fi-primary: #1f6feb;
+      --fi-primary-dark: #174ea6;
+      --fi-border: #d0d7de;
+      --fi-bg: #f6f8fa;
+      --fi-card: #ffffff;
+      --fi-text: #24292f;
+      --fi-muted: #57606a;
+      --fi-danger: #cf222e;
+      --fi-success: #1a7f37;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--fi-bg);
+      color: var(--fi-text);
+    }
+
+    .fi-app {
+      padding: 18px;
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+
+    .fi-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .fi-title {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.2;
+    }
+
+    .fi-subtitle {
+      margin: 4px 0 0;
+      color: var(--fi-muted);
+      font-size: 14px;
+    }
+
+    .fi-status {
+      min-height: 22px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #eef4ff;
+      color: var(--fi-primary-dark);
+      font-size: 14px;
+    }
+
+    .fi-status.error {
+      background: #ffebe9;
+      color: var(--fi-danger);
+    }
+
+    .fi-status.success {
+      background: #dafbe1;
+      color: var(--fi-success);
+    }
+
+    .fi-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .fi-card {
+      background: var(--fi-card);
+      border: 1px solid var(--fi-border);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.05);
+      overflow: hidden;
+    }
+
+    .fi-card-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--fi-border);
+    }
+
+    .fi-card-header h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .fi-search {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--fi-border);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .fi-table-wrap {
+      max-height: 620px;
+      overflow: auto;
+    }
+
+    .fi-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .fi-table th,
+    .fi-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--fi-border);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .fi-table th {
+      position: sticky;
+      top: 0;
+      background: #f6f8fa;
+      z-index: 1;
+      font-weight: 700;
+    }
+
+    .fi-vehicle-row {
+      cursor: pointer;
+    }
+
+    .fi-vehicle-row:hover,
+    .fi-vehicle-row.selected {
+      background: #eef4ff;
+    }
+
+    .fi-empty {
+      padding: 18px;
+      color: var(--fi-muted);
+      text-align: center;
+    }
+
+    .fi-details {
+      display: grid;
+      gap: 18px;
+    }
+
+    .fi-panel {
+      padding: 16px;
+    }
+
+    .fi-panel h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .fi-selected-name {
+      margin: 0 0 14px;
+      color: var(--fi-muted);
+      font-size: 15px;
+    }
+
+    .fi-location-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .fi-metric {
+      padding: 12px;
+      border: 1px solid var(--fi-border);
+      border-radius: 10px;
+      background: #fbfbfc;
+    }
+
+    .fi-label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--fi-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .fi-value {
+      overflow-wrap: anywhere;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .fi-map-link {
+      color: var(--fi-primary);
+      text-decoration: none;
+    }
+
+    .fi-map-link:hover {
+      text-decoration: underline;
+    }
+
+    .fi-chart-wrap {
+      min-height: 320px;
+      padding: 8px 0 0;
+    }
+
+    @media (max-width: 860px) {
+      .fi-grid,
+      .fi-location-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <main class="fi-app" id="fleet-intelligence-app">
+    <header class="fi-header">
+      <div>
+        <h1 class="fi-title">Fleet Intelligence</h1>
+        <p class="fi-subtitle">Search vehicles, inspect the latest GPS location, and review speeding events from the last 30 days.</p>
+      </div>
+      <div class="fi-status" id="fi-status" role="status" aria-live="polite">Initializing add-in...</div>
+    </header>
+
+    <section class="fi-grid" aria-label="Fleet intelligence dashboard">
+      <article class="fi-card">
+        <div class="fi-card-header">
+          <h2>Vehicles</h2>
+          <input class="fi-search" id="fi-search" type="search" placeholder="Search by vehicle name, serial number, VIN, or license plate" aria-label="Search vehicles">
+        </div>
+        <div class="fi-table-wrap">
+          <table class="fi-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Serial</th>
+                <th>VIN</th>
+              </tr>
+            </thead>
+            <tbody id="fi-vehicle-table"></tbody>
+          </table>
+          <div class="fi-empty" id="fi-empty" hidden>No vehicles found.</div>
+        </div>
+      </article>
+
+      <section class="fi-details">
+        <article class="fi-card fi-panel">
+          <h2>Latest GPS Location</h2>
+          <p class="fi-selected-name" id="fi-selected-name">Select a vehicle to load location and speeding data.</p>
+          <div class="fi-location-grid">
+            <div class="fi-metric"><span class="fi-label">Date and time</span><span class="fi-value" id="fi-date">-</span></div>
+            <div class="fi-metric"><span class="fi-label">Speed</span><span class="fi-value" id="fi-speed">-</span></div>
+            <div class="fi-metric"><span class="fi-label">Latitude</span><span class="fi-value" id="fi-latitude">-</span></div>
+            <div class="fi-metric"><span class="fi-label">Longitude</span><span class="fi-value" id="fi-longitude">-</span></div>
+            <div class="fi-metric"><span class="fi-label">Map</span><span class="fi-value" id="fi-map">-</span></div>
+          </div>
+        </article>
+
+        <article class="fi-card fi-panel">
+          <h2>Speeding Events - Last 30 Days</h2>
+          <div class="fi-chart-wrap">
+            <canvas id="fi-speeding-chart" aria-label="Speeding events grouped by date" role="img"></canvas>
+          </div>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var apiClient = null;
+      var vehicles = [];
+      var filteredVehicles = [];
+      var selectedVehicleId = null;
+      var speedingChart = null;
+      var eventsBound = false;
+      var chartJsPromise = null;
+      var chartJsLoadFailed = false;
+
+      function getElement(id) {
+        return document.getElementById(id);
+      }
+
+      function setStatus(message, type) {
+        var status = getElement("fi-status");
+        status.textContent = message;
+        status.className = "fi-status" + (type ? " " + type : "");
+      }
+
+      function loadChartJs() {
+        if (typeof Chart === "function") {
+          return Promise.resolve();
+        }
+
+        if (chartJsPromise) {
+          return chartJsPromise;
+        }
+
+        chartJsPromise = new Promise(function (resolve, reject) {
+          var script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js";
+          script.async = true;
+          script.onload = function () {
+            chartJsLoadFailed = false;
+            resolve();
+          };
+          script.onerror = function () {
+            chartJsLoadFailed = true;
+            reject(new Error("Chart.js could not be loaded. Speeding events will be listed in the data source but the chart cannot be displayed."));
+          };
+          document.body.appendChild(script);
+        });
+
+        return chartJsPromise;
+      }
+
+      function safeText(value, fallback) {
+        if (value === null || value === undefined || value === "") {
+          return fallback || "-";
+        }
+        return String(value);
+      }
+
+      function escapeHtml(value) {
+        return safeText(value, "").replace(/[&<>'"]/g, function (character) {
+          return {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            "'": "&#39;",
+            "\"": "&quot;"
+          }[character];
+        });
+      }
+
+      function callApi(typeName, params) {
+        return new Promise(function (resolve, reject) {
+          if (!apiClient || typeof apiClient.call !== "function") {
+            reject(new Error("The MyGeotab API client is not available."));
+            return;
+          }
+
+          apiClient.call("Get", {
+            typeName: typeName,
+            search: params.search || {},
+            resultsLimit: params.resultsLimit
+          }, resolve, function (error) {
+            var message = error && (error.message || error.name || error.toString()) || "Unknown Geotab API error.";
+            reject(new Error(message));
+          });
+        });
+      }
+
+      function vehicleSearchText(vehicle) {
+        return [
+          vehicle.name,
+          vehicle.serialNumber,
+          vehicle.vehicleIdentificationNumber,
+          vehicle.licensePlate
+        ].map(function (value) { return safeText(value, "").toLowerCase(); }).join(" ");
+      }
+
+      function renderVehicles() {
+        var tableBody = getElement("fi-vehicle-table");
+        var empty = getElement("fi-empty");
+        tableBody.innerHTML = filteredVehicles.map(function (vehicle) {
+          var selectedClass = vehicle.id === selectedVehicleId ? " selected" : "";
+          return "<tr class=\"fi-vehicle-row" + selectedClass + "\" data-id=\"" + escapeHtml(vehicle.id) + "\">" +
+            "<td>" + escapeHtml(vehicle.name || "Unnamed vehicle") + "</td>" +
+            "<td>" + escapeHtml(vehicle.serialNumber) + "</td>" +
+            "<td>" + escapeHtml(vehicle.vehicleIdentificationNumber) + "</td>" +
+            "</tr>";
+        }).join("");
+        empty.hidden = filteredVehicles.length > 0;
+      }
+
+      function filterVehicles() {
+        var query = getElement("fi-search").value.trim().toLowerCase();
+        filteredVehicles = query ? vehicles.filter(function (vehicle) {
+          return vehicleSearchText(vehicle).indexOf(query) !== -1;
+        }) : vehicles.slice();
+        renderVehicles();
+      }
+
+      function resetDetails() {
+        getElement("fi-date").textContent = "-";
+        getElement("fi-speed").textContent = "-";
+        getElement("fi-latitude").textContent = "-";
+        getElement("fi-longitude").textContent = "-";
+        getElement("fi-map").textContent = "-";
+      }
+
+      function formatDate(value) {
+        if (!value) {
+          return "-";
+        }
+        var date = new Date(value);
+        return Number.isNaN(date.getTime()) ? safeText(value) : date.toLocaleString();
+      }
+
+      function renderLocation(logRecord) {
+        if (!logRecord) {
+          resetDetails();
+          getElement("fi-map").textContent = "No GPS location found.";
+          return;
+        }
+
+        var latitude = logRecord.latitude;
+        var longitude = logRecord.longitude;
+        getElement("fi-date").textContent = formatDate(logRecord.dateTime);
+        getElement("fi-speed").textContent = logRecord.speed === null || logRecord.speed === undefined || logRecord.speed === "" ? "-" : safeText(logRecord.speed) + " km/h";
+        getElement("fi-latitude").textContent = safeText(latitude);
+        getElement("fi-longitude").textContent = safeText(longitude);
+
+        if (latitude !== undefined && longitude !== undefined) {
+          var url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(latitude + "," + longitude);
+          getElement("fi-map").innerHTML = "<a class=\"fi-map-link\" href=\"" + url + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open in Google Maps</a>";
+        } else {
+          getElement("fi-map").textContent = "Coordinates unavailable.";
+        }
+      }
+
+      function groupEventsByDate(events) {
+        return events.reduce(function (groups, event) {
+          var day = event.activeFrom ? new Date(event.activeFrom).toISOString().slice(0, 10) : "Unknown";
+          groups[day] = (groups[day] || 0) + 1;
+          return groups;
+        }, {});
+      }
+
+      function renderSpeedingChart(events) {
+        if (typeof Chart !== "function") {
+          setStatus("Unable to display speeding chart: Chart.js is not available.", "error");
+          return;
+        }
+
+        var context = getElement("fi-speeding-chart").getContext("2d");
+        var grouped = groupEventsByDate(events);
+        var labels = Object.keys(grouped).sort();
+        var data = labels.map(function (label) { return grouped[label]; });
+
+        if (speedingChart) {
+          speedingChart.destroy();
+        }
+
+        speedingChart = new Chart(context, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [{
+              label: "Speeding events",
+              data: data,
+              backgroundColor: "rgba(31, 111, 235, 0.7)",
+              borderColor: "rgba(31, 111, 235, 1)",
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { precision: 0 }
+              }
+            },
+            plugins: {
+              legend: { display: true },
+              tooltip: { enabled: true }
+            }
+          }
+        });
+      }
+
+      function getSelectedVehicle() {
+        return vehicles.find(function (vehicle) { return vehicle.id === selectedVehicleId; });
+      }
+
+      function loadLatestLocation(vehicle) {
+        return callApi("LogRecord", {
+          search: {
+            deviceSearch: { id: vehicle.id },
+            fromDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          resultsLimit: 100
+        }).then(function (records) {
+          var latestRecord = (records || []).sort(function (a, b) {
+            return new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
+          })[0];
+          renderLocation(latestRecord);
+        });
+      }
+
+      function loadSpeedingEvents(vehicle) {
+        var fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        return callApi("ExceptionEvent", {
+          search: {
+            deviceSearch: { id: vehicle.id },
+            fromDate: fromDate,
+            ruleSearch: { name: "%speed%" }
+          },
+          resultsLimit: 5000
+        }).then(function (events) {
+          var speedingEvents = (events || []).filter(function (event) {
+            var ruleName = event.rule && event.rule.name ? event.rule.name.toLowerCase() : "";
+            return ruleName.indexOf("speed") !== -1;
+          });
+          renderSpeedingChart(speedingEvents);
+        });
+      }
+
+      function selectVehicle(vehicleId) {
+        selectedVehicleId = vehicleId;
+        var vehicle = getSelectedVehicle();
+        if (!vehicle) {
+          return;
+        }
+
+        renderVehicles();
+        resetDetails();
+        getElement("fi-selected-name").textContent = vehicle.name || "Selected vehicle";
+        setStatus("Loading data for " + (vehicle.name || vehicle.id) + "...");
+
+        Promise.all([loadLatestLocation(vehicle), loadSpeedingEvents(vehicle)])
+          .then(function () {
+            setStatus("Vehicle data loaded.", "success");
+          })
+          .catch(function (error) {
+            setStatus("Unable to load selected vehicle data: " + error.message, "error");
+          });
+      }
+
+      function bindEvents() {
+        if (eventsBound) {
+          return;
+        }
+
+        eventsBound = true;
+        getElement("fi-search").addEventListener("input", filterVehicles);
+        getElement("fi-vehicle-table").addEventListener("click", function (event) {
+          var row = event.target.closest(".fi-vehicle-row");
+          if (row) {
+            selectVehicle(row.getAttribute("data-id"));
+          }
+        });
+      }
+
+      function loadVehicles() {
+        setStatus("Loading vehicles...");
+        return callApi("Device", {
+          search: {},
+          resultsLimit: 50000
+        }).then(function (devices) {
+          vehicles = (devices || []).sort(function (a, b) {
+            return safeText(a.name, "").localeCompare(safeText(b.name, ""));
+          });
+          filteredVehicles = vehicles.slice();
+          renderVehicles();
+          setStatus("Loaded " + vehicles.length + " vehicles.", "success");
+        }).catch(function (error) {
+          setStatus("Unable to load vehicles: " + error.message, "error");
+        });
+      }
+
+      window.geotab = window.geotab || {};
+      window.geotab.addin = window.geotab.addin || {};
+      window.geotab.addin.fleetIntelligence = function () {
+        return {
+          initialize: function (api, state, callback) {
+            apiClient = api;
+            bindEvents();
+
+            loadChartJs()
+              .then(function () {
+                renderSpeedingChart([]);
+              })
+              .catch(function (error) {
+                setStatus(error.message, "error");
+              })
+              .then(function () {
+                return loadVehicles();
+              })
+              .then(function () {
+                if (chartJsLoadFailed) {
+                  setStatus("Vehicles loaded. Chart.js could not be loaded, so the speeding chart is unavailable.", "error");
+                }
+              })
+              .catch(function (error) {
+                setStatus("Unable to initialize Fleet Intelligence: " + error.message, "error");
+              })
+              .finally(function () {
+                if (typeof callback === "function") {
+                  callback();
+                }
+              });
+          },
+          focus: function (api, state) {
+            apiClient = api;
+            if (!vehicles.length) {
+              loadVehicles();
+            }
+          },
+          blur: function (api, state) {
+            setStatus("Fleet Intelligence paused.");
+          }
+        };
+      };
+    }());
+  </script>
+</body>
+</html>
