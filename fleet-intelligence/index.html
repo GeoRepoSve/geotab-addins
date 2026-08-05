@@ -4,8 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fleet Intelligence</title>
-</head>
-<body>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -220,6 +219,8 @@
       }
     }
   </style>
+</head>
+<body>
   <main class="fi-app" id="fleet-intelligence-app">
     <header class="fi-header">
       <div>
@@ -281,8 +282,6 @@
       var selectedVehicleId = null;
       var speedingChart = null;
       var eventsBound = false;
-      var chartJsPromise = null;
-      var chartJsLoadFailed = false;
 
       function getElement(id) {
         return document.getElementById(id);
@@ -292,33 +291,6 @@
         var status = getElement("fi-status");
         status.textContent = message;
         status.className = "fi-status" + (type ? " " + type : "");
-      }
-
-      function loadChartJs() {
-        if (typeof Chart === "function") {
-          return Promise.resolve();
-        }
-
-        if (chartJsPromise) {
-          return chartJsPromise;
-        }
-
-        chartJsPromise = new Promise(function (resolve, reject) {
-          var script = document.createElement("script");
-          script.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js";
-          script.async = true;
-          script.onload = function () {
-            chartJsLoadFailed = false;
-            resolve();
-          };
-          script.onerror = function () {
-            chartJsLoadFailed = true;
-            reject(new Error("Chart.js could not be loaded. Speeding events will be listed in the data source but the chart cannot be displayed."));
-          };
-          document.body.appendChild(script);
-        });
-
-        return chartJsPromise;
       }
 
       function safeText(value, fallback) {
@@ -577,29 +549,11 @@
             apiClient = api;
             bindEvents();
 
-            loadChartJs()
-              .then(function () {
-                renderSpeedingChart([]);
-              })
-              .catch(function (error) {
-                setStatus(error.message, "error");
-              })
-              .then(function () {
-                return loadVehicles();
-              })
-              .then(function () {
-                if (chartJsLoadFailed) {
-                  setStatus("Vehicles loaded. Chart.js could not be loaded, so the speeding chart is unavailable.", "error");
-                }
-              })
-              .catch(function (error) {
-                setStatus("Unable to initialize Fleet Intelligence: " + error.message, "error");
-              })
-              .finally(function () {
-                if (typeof callback === "function") {
-                  callback();
-                }
-              });
+            if (typeof callback === "function") {
+              callback();
+            }
+
+            loadVehicles();
           },
           focus: function (api, state) {
             apiClient = api;
