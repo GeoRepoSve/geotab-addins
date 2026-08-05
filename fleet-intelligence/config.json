@@ -1,0 +1,15 @@
+{
+  "name": "Fleet Intelligence",
+  "supportEmail": "CHANGE_ME@example.com",
+  "version": "1.0.0",
+  "items": [
+    {
+      "url": "https://GITHUB_USERNAME.github.io/geotab-addins/fleet-intelligence/",
+      "path": "ActivityLink/",
+      "menuName": {
+        "en": "Fleet Intelligence",
+        "sl": "Pregled voznega parka"
+      }
+    }
+  ]
+}

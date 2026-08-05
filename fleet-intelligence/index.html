@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Geotab Fleet Intelligence</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --danger: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+    }
+
+    .dashboard {
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .header,
+    .toolbar,
+    .stats,
+    .content-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .header {
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 30px;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+
+    .status {
+      padding: 9px 13px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--card);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .toolbar {
+      grid-template-columns: minmax(240px, 1fr) auto;
+      margin-bottom: 18px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--card);
+    }
+
+    select,
+    input,
+    button {
+      min-height: 42px;
+      padding: 0 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+    }
+
+    .stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .stat,
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--card);
+      box-shadow: 0 6px 20px rgba(15, 23, 42, .06);
+    }
+
+    .stat {
+      padding: 17px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin-top: 8px;
+      overflow: hidden;
+      font-size: 26px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .content-grid {
+      grid-template-columns: minmax(0, 1.6fr) minmax(320px, .8fr);
+      margin-bottom: 18px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .card-body {
+      padding: 18px;
+    }
+
+    .table-wrap {
+      max-height: 480px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    tbody tr {
+      cursor: pointer;
+    }
+
+    tbody tr:hover,
+    tbody tr.selected {
+      background: #eff6ff;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .gps-item {
+      margin-bottom: 12px;
+      padding: 13px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .gps-item span {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .chart-wrap {
+      position: relative;
+      min-height: 350px;
+    }
+
+    .message {
+      padding: 28px 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .error {
+      color: var(--danger);
+    }
+
+    @media (max-width: 900px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .content-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      .header,
+      .toolbar,
+      .stats { grid-template-columns: 1fr; }
+      .card-header { align-items: stretch; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="dashboard">
+    <header class="header">
+      <div>
+        <h1>Fleet Intelligence</h1>
+        <p>Vozila, prekoračitve hitrosti in zadnje GPS lokacije.</p>
+      </div>
+      <div id="status" class="status">Inicializacija</div>
+    </header>
+
+    <section class="toolbar">
+      <select id="vehicleSelect" disabled>
+        <option value="">Nalaganje vozil ...</option>
+      </select>
+      <button id="refreshButton" type="button" disabled>Osveži podatke</button>
+    </section>
+
+    <section class="stats">
+      <article class="stat">
+        <div class="stat-label">Vsa vozila</div>
+        <div id="vehicleCount" class="stat-value">—</div>
+      </article>
+      <article class="stat">
+        <div class="stat-label">Izbrano vozilo</div>
+        <div id="selectedVehicle" class="stat-value">—</div>
+      </article>
+      <article class="stat">
+        <div class="stat-label">Prekoračitve / 30 dni</div>
+        <div id="eventCount" class="stat-value">—</div>
+      </article>
+      <article class="stat">
+        <div class="stat-label">Zadnji GPS zapis</div>
+        <div id="lastGps" class="stat-value">—</div>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <article class="card">
+        <div class="card-header">
+          <h2>Seznam vozil</h2>
+          <input id="searchInput" type="search" placeholder="Išči vozilo ...">
+        </div>
+        <div id="vehicleTable" class="table-wrap">
+          <div class="message">Nalaganje vozil ...</div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <h2>Zadnja GPS lokacija</h2>
+        </div>
+        <div id="gpsContent" class="card-body">
+          <div class="message">Izberite vozilo.</div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Prekoračitve hitrosti</h2>
+      </div>
+      <div class="card-body">
+        <div class="chart-wrap">
+          <canvas id="speedingChart"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Official Geotab SDK Lifecycle Boilerplate
+    geotab.addin.fleetIntelligence = () => {
+      let apiRef = null;
+      let vehicles = [];
+      let selectedDeviceId = "";
+      let chart = null;
+      let speedingRuleIds = [];
+
+      const DAYS = 30;
+      const RESULTS_LIMIT = 50000;
+
+      const el = id => document.getElementById(id);
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function apiCall(method, params) {
+        return new Promise((resolve, reject) => {
+          apiRef.call(
+            method,
+            params,
+            resolve,
+            error => reject(new Error(error?.message || String(error || "Neznana API napaka")))
+          );
+        });
+      }
+
+      function vehicleName(vehicle) {
+        return vehicle.name || vehicle.licensePlate || vehicle.vehicleIdentificationNumber || vehicle.id;
+      }
+
+      function setBusy(isBusy, text) {
+        el("status").textContent = text;
+        el("refreshButton").disabled = isBusy || !selectedDeviceId;
+        el("vehicleSelect").disabled = isBusy || vehicles.length === 0;
+      }
+
+      function renderVehicles(filter = "") {
+        const needle = filter.trim().toLocaleLowerCase("sl");
+        const filtered = vehicles.filter(vehicle =>
+          [
+            vehicle.name,
+            vehicle.licensePlate,
+            vehicle.vehicleIdentificationNumber,
+            vehicle.id
+          ].filter(Boolean).join(" ").toLocaleLowerCase("sl").includes(needle)
+        );
+
+        if (!filtered.length) {
+          el("vehicleTable").innerHTML = '<div class="message">Ni najdenih vozil.</div>';
+          return;
+        }
+
+        el("vehicleTable").innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Vozilo</th>
+                <th>Registracija</th>
+                <th>VIN</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map(vehicle => `
+                <tr data-id="${escapeHtml(vehicle.id)}" class="${vehicle.id === selectedDeviceId ? "selected" : ""}">
+                  <td><strong>${escapeHtml(vehicleName(vehicle))}</strong><div class="muted">${escapeHtml(vehicle.id)}</div></td>
+                  <td>${escapeHtml(vehicle.licensePlate || "—")}</td>
+                  <td>${escapeHtml(vehicle.vehicleIdentificationNumber || "—")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+
+        el("vehicleTable").querySelectorAll("tbody tr").forEach(row => {
+          row.addEventListener("click", () => selectVehicle(row.dataset.id));
+        });
+      }
+
+      function populateSelect() {
+        el("vehicleSelect").innerHTML = vehicles.map(vehicle =>
+          `<option value="${escapeHtml(vehicle.id)}">${escapeHtml(vehicleName(vehicle))}</option>`
+        ).join("");
+
+        selectedDeviceId = vehicles.some(v => v.id === selectedDeviceId)
+          ? selectedDeviceId
+          : vehicles[0]?.id || "";
+
+        el("vehicleSelect").value = selectedDeviceId;
+      }
+
+      async function loadVehicles() {
+        setBusy(true, "Nalaganje vozil ...");
+
+        try {
+          vehicles = (await apiCall("Get", {
+            typeName: "Device",
+            resultsLimit: RESULTS_LIMIT
+          }))
+            .filter(vehicle => vehicle?.id)
+            .sort((a, b) => vehicleName(a).localeCompare(vehicleName(b), "sl"));
+
+          el("vehicleCount").textContent = vehicles.length.toLocaleString("sl-SI");
+          populateSelect();
+          renderVehicles(el("searchInput").value);
+
+          if (selectedDeviceId) {
+            await loadSelectedData();
+          }
+
+          setBusy(false, "Podatki naloženi");
+        } catch (error) {
+          console.error(error);
+          el("vehicleTable").innerHTML = `<div class="message error">${escapeHtml(error.message)}</div>`;
+          setBusy(false, "Napaka");
+        }
+      }
+
+      async function selectVehicle(deviceId) {
+        selectedDeviceId = deviceId;
+        el("vehicleSelect").value = deviceId;
+        renderVehicles(el("searchInput").value);
+        await loadSelectedData();
+      }
+
+      async function loadSelectedData() {
+        const vehicle = vehicles.find(v => v.id === selectedDeviceId);
+        if (!vehicle) return;
+
+        el("selectedVehicle").textContent = vehicleName(vehicle);
+        setBusy(true, `Nalaganje: ${vehicleName(vehicle)}`);
+
+        await Promise.allSettled([
+          loadLatestGps(vehicle),
+          loadSpeedingEvents(vehicle)
+        ]);
+
+        setBusy(false, "Podatki naloženi");
+      }
+
+      async function loadLatestGps(vehicle) {
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - DAYS);
+
+        try {
+          const logs = await apiCall("Get", {
+            typeName: "LogRecord",
+            search: {
+              deviceSearch: { id: vehicle.id },
+              fromDate: fromDate.toISOString()
+            },
+            resultsLimit: RESULTS_LIMIT
+          });
+
+          const latest = logs
+            .filter(log => log?.dateTime && Number.isFinite(Number(log.latitude)) && Number.isFinite(Number(log.longitude)))
+            .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime))[0];
+
+          if (!latest) {
+            el("lastGps").textContent = "Ni podatka";
+            el("gpsContent").innerHTML = '<div class="message">V zadnjih 30 dneh ni GPS zapisov.</div>';
+            return;
+          }
+
+          const date = new Date(latest.dateTime);
+          const formattedDate = new Intl.DateTimeFormat("sl-SI", {
+            dateStyle: "medium",
+            timeStyle: "medium"
+          }).format(date);
+
+          el("lastGps").textContent = formattedDate;
+          el("gpsContent").innerHTML = `
+            <div class="gps-item"><span>Datum in čas</span><strong>${escapeHtml(formattedDate)}</strong></div>
+            <div class="gps-item"><span>Koordinate</span><strong>${Number(latest.latitude).toFixed(6)}, ${Number(latest.longitude).toFixed(6)}</strong></div>
+            <div class="gps-item"><span>Hitrost</span><strong>${Number.isFinite(Number(latest.speed)) ? `${Number(latest.speed).toFixed(0)} km/h` : "—"}</strong></div>
+            <a href="https://www.google.com/maps?q=${encodeURIComponent(latest.latitude)},${encodeURIComponent(latest.longitude)}" target="_blank" rel="noopener">Odpri v Google Maps</a>
+          `;
+        } catch (error) {
+          console.error(error);
+          el("lastGps").textContent = "Napaka";
+          el("gpsContent").innerHTML = `<div class="message error">${escapeHtml(error.message)}</div>`;
+        }
+      }
+
+      async function getSpeedingRuleIds() {
+        if (speedingRuleIds.length) return speedingRuleIds;
+
+        const rules = await apiCall("Get", {
+          typeName: "Rule",
+          resultsLimit: RESULTS_LIMIT
+        });
+
+        const terms = ["speed", "speeding", "over speed", "prekorač", "hitrost"];
+        speedingRuleIds = rules
+          .filter(rule => terms.some(term =>
+            [rule.name, rule.comment, rule.baseType]
+              .filter(Boolean)
+              .join(" ")
+              .toLocaleLowerCase("sl")
+              .includes(term)
+          ))
+          .map(rule => rule.id)
+          .filter(Boolean);
+
+        return speedingRuleIds;
+      }
+
+      async function loadSpeedingEvents(vehicle) {
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - DAYS);
+
+        try {
+          const ruleIds = await getSpeedingRuleIds();
+          const groups = await Promise.all(ruleIds.map(ruleId =>
+            apiCall("Get", {
+              typeName: "ExceptionEvent",
+              search: {
+                deviceSearch: { id: vehicle.id },
+                ruleSearch: { id: ruleId },
+                fromDate: fromDate.toISOString(),
+                toDate: toDate.toISOString()
+              },
+              resultsLimit: RESULTS_LIMIT
+            }).catch(() => [])
+          ));
+
+          const events = groups.flat();
+          el("eventCount").textContent = events.length.toLocaleString("sl-SI");
+          renderChart(events, fromDate, toDate);
+        } catch (error) {
+          console.error(error);
+          el("eventCount").textContent = "Napaka";
+          renderChart([], fromDate, toDate);
+        }
+      }
+
+      function dateKey(date) {
+        return [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, "0"),
+          String(date.getDate()).padStart(2, "0")
+        ].join("-");
+      }
+
+      function renderChart(events, fromDate, toDate) {
+        const counts = new Map();
+        const cursor = new Date(fromDate);
+        cursor.setHours(0, 0, 0, 0);
+
+        const end = new Date(toDate);
+        end.setHours(0, 0, 0, 0);
+
+        while (cursor <= end) {
+          counts.set(dateKey(cursor), 0);
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        events.forEach(event => {
+          const value = event.activeFrom || event.dateTime || event.activeTo;
+          if (!value) return;
+          const key = dateKey(new Date(value));
+          if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+        });
+
+        const labels = [];
+        const values = [];
+
+        counts.forEach((count, key) => {
+          labels.push(new Intl.DateTimeFormat("sl-SI", {
+            day: "2-digit",
+            month: "2-digit"
+          }).format(new Date(`${key}T00:00:00`)));
+          values.push(count);
+        });
+
+        if (chart) chart.destroy();
+
+        chart = new Chart(el("speedingChart"), {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [{
+              label: "Prekoračitve hitrosti",
+              data: values,
+              backgroundColor: "rgba(37, 99, 235, .72)",
+              borderColor: "rgb(37, 99, 235)",
+              borderWidth: 1,
+              borderRadius: 5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false } },
+              y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+          }
+        });
+      }
+
+      function attachEvents() {
+        el("vehicleSelect").addEventListener("change", event => selectVehicle(event.target.value));
+        el("searchInput").addEventListener("input", event => renderVehicles(event.target.value));
+        el("refreshButton").addEventListener("click", loadSelectedData);
+      }
+
+      return {
+        // Triggered when the Add-In is loaded into the DOM
+        initialize(api, state, callback) {
+          apiRef = api;
+          console.log("Geotab Add-In initialized.", state);
+          attachEvents();
+          renderChart([], new Date(Date.now() - DAYS * 86400000), new Date());
+
+          // CRITICAL: Always invoke the callback when setup is complete
+          callback();
+        },
+
+        // Triggered whenever the user navigates onto this specific page
+        focus(api, state) {
+          apiRef = api;
+          console.log("Add-In page focused. Executing data workflows...", state);
+          loadVehicles();
+        },
+
+        // Triggered when the user navigates away from this page
+        blur(api, state) {
+          console.log("Add-In page blurred. Teardown active listeners.", state);
+        }
+      };
+    };
+  </script>
+</body>
+</html>
