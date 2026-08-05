@@ -26,9 +26,9 @@
 
     body {
       margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
       background: var(--fi-bg);
       color: var(--fi-text);
+      font-family: Arial, Helvetica, sans-serif;
     }
 
     .fi-app {
@@ -119,7 +119,7 @@
     }
 
     .fi-table-wrap {
-      max-height: 620px;
+      max-height: 760px;
       overflow: auto;
     }
 
@@ -185,6 +185,7 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
+      margin-bottom: 14px;
     }
 
     .fi-metric {
@@ -218,16 +219,63 @@
       text-decoration: underline;
     }
 
+    .fi-map-container {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      overflow: hidden;
+      border: 1px solid var(--fi-border);
+      border-radius: 12px;
+      background: #eef2f6;
+    }
+
+    .fi-map-placeholder {
+      display: flex;
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: #f6f8fa;
+      color: var(--fi-muted);
+      text-align: center;
+    }
+
+    .fi-map-placeholder[hidden] {
+      display: none;
+    }
+
+    #fi-map-canvas {
+      width: 100%;
+      height: 100%;
+      min-height: 380px;
+    }
+
     .fi-chart-wrap {
       position: relative;
       min-height: 320px;
       padding-top: 8px;
     }
 
+    .fi-popup-title {
+      margin: 0 0 5px;
+      font-weight: 700;
+    }
+
+    .fi-popup-line {
+      margin: 2px 0;
+      font-size: 13px;
+    }
+
     @media (max-width: 860px) {
       .fi-grid,
       .fi-location-grid {
         grid-template-columns: 1fr;
+      }
+
+      .fi-table-wrap {
+        max-height: 480px;
       }
     }
 
@@ -243,6 +291,12 @@
 
       .fi-title {
         font-size: 22px;
+      }
+
+      .fi-map-container,
+      #fi-map-canvas {
+        height: 300px;
+        min-height: 300px;
       }
     }
   </style>
@@ -270,6 +324,7 @@
       <article class="fi-card">
         <div class="fi-card-header">
           <h2>Vozila</h2>
+
           <input
             class="fi-search"
             id="fi-search"
@@ -288,6 +343,7 @@
                 <th>VIN</th>
               </tr>
             </thead>
+
             <tbody id="fi-vehicle-table"></tbody>
           </table>
 
@@ -327,9 +383,23 @@
             </div>
 
             <div class="fi-metric">
-              <span class="fi-label">Zemljevid</span>
-              <span class="fi-value" id="fi-map">—</span>
+              <span class="fi-label">Zunanja povezava</span>
+              <span class="fi-value" id="fi-map-link">—</span>
             </div>
+          </div>
+
+          <div class="fi-map-container">
+            <div
+              class="fi-map-placeholder"
+              id="fi-map-placeholder"
+            >
+              Izberite vozilo za prikaz zadnje lokacije na zemljevidu.
+            </div>
+
+            <div
+              id="fi-map-canvas"
+              aria-label="OpenStreetMap zemljevid zadnje lokacije vozila"
+            ></div>
           </div>
         </article>
 
@@ -357,12 +427,23 @@
       var filteredVehicles = [];
       var selectedVehicleId = null;
       var speedingChart = null;
-      var eventsBound = false;
-      var chartLoadPromise = null;
       var speedingRuleIds = [];
+      var eventsBound = false;
+
+      var chartLoadPromise = null;
+      var leafletLoadPromise = null;
+
+      var leafletMap = null;
+      var leafletMarker = null;
 
       var CHART_JS_URL =
         "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js";
+
+      var LEAFLET_JS_URL =
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+
+      var LEAFLET_CSS_URL =
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 
       function getElement(id) {
         return document.getElementById(id);
@@ -399,6 +480,79 @@
         });
       }
 
+      function loadExternalScript(url, attributeName) {
+        return new Promise(function (resolve, reject) {
+          var selector = "script[" + attributeName + '="true"]';
+          var existingScript = document.querySelector(selector);
+
+          if (existingScript) {
+            if (existingScript.dataset.loaded === "true") {
+              resolve();
+              return;
+            }
+
+            existingScript.addEventListener("load", function () {
+              resolve();
+            });
+
+            existingScript.addEventListener("error", function () {
+              reject(new Error("Zunanje knjižnice ni bilo mogoče naložiti."));
+            });
+
+            return;
+          }
+
+          var script = document.createElement("script");
+
+          script.src = url;
+          script.async = true;
+          script.setAttribute(attributeName, "true");
+
+          script.onload = function () {
+            script.dataset.loaded = "true";
+            resolve();
+          };
+
+          script.onerror = function () {
+            reject(
+              new Error("Zunanje knjižnice ni bilo mogoče naložiti: " + url)
+            );
+          };
+
+          document.body.appendChild(script);
+        });
+      }
+
+      function loadExternalStylesheet(url, attributeName) {
+        return new Promise(function (resolve, reject) {
+          var selector = "link[" + attributeName + '="true"]';
+          var existingLink = document.querySelector(selector);
+
+          if (existingLink) {
+            resolve();
+            return;
+          }
+
+          var link = document.createElement("link");
+
+          link.rel = "stylesheet";
+          link.href = url;
+          link.setAttribute(attributeName, "true");
+
+          link.onload = function () {
+            resolve();
+          };
+
+          link.onerror = function () {
+            reject(
+              new Error("Zunanjega sloga ni bilo mogoče naložiti: " + url)
+            );
+          };
+
+          document.head.appendChild(link);
+        });
+      }
+
       function loadChartJs() {
         if (typeof window.Chart === "function") {
           return Promise.resolve(window.Chart);
@@ -408,48 +562,47 @@
           return chartLoadPromise;
         }
 
-        chartLoadPromise = new Promise(function (resolve, reject) {
-          var existingScript = document.querySelector(
-            'script[data-fi-chartjs="true"]'
-          );
-
-          if (existingScript) {
-            existingScript.addEventListener("load", function () {
-              if (typeof window.Chart === "function") {
-                resolve(window.Chart);
-              } else {
-                reject(new Error("Chart.js se ni pravilno inicializiral."));
-              }
-            });
-
-            existingScript.addEventListener("error", function () {
-              reject(new Error("Chart.js knjižnice ni bilo mogoče naložiti."));
-            });
-
-            return;
+        chartLoadPromise = loadExternalScript(
+          CHART_JS_URL,
+          "data-fi-chartjs"
+        ).then(function () {
+          if (typeof window.Chart !== "function") {
+            throw new Error("Chart.js se ni pravilno inicializiral.");
           }
 
-          var script = document.createElement("script");
-          script.src = CHART_JS_URL;
-          script.async = true;
-          script.dataset.fiChartjs = "true";
-
-          script.onload = function () {
-            if (typeof window.Chart === "function") {
-              resolve(window.Chart);
-            } else {
-              reject(new Error("Chart.js se ni pravilno inicializiral."));
-            }
-          };
-
-          script.onerror = function () {
-            reject(new Error("Chart.js knjižnice ni bilo mogoče naložiti."));
-          };
-
-          document.body.appendChild(script);
+          return window.Chart;
         });
 
         return chartLoadPromise;
+      }
+
+      function loadLeaflet() {
+        if (window.L && typeof window.L.map === "function") {
+          return Promise.resolve(window.L);
+        }
+
+        if (leafletLoadPromise) {
+          return leafletLoadPromise;
+        }
+
+        leafletLoadPromise = Promise.all([
+          loadExternalStylesheet(
+            LEAFLET_CSS_URL,
+            "data-fi-leaflet-css"
+          ),
+          loadExternalScript(
+            LEAFLET_JS_URL,
+            "data-fi-leaflet-js"
+          )
+        ]).then(function () {
+          if (!window.L || typeof window.L.map !== "function") {
+            throw new Error("Leaflet se ni pravilno inicializiral.");
+          }
+
+          return window.L;
+        });
+
+        return leafletLoadPromise;
       }
 
       function apiGet(typeName, search, resultsLimit) {
@@ -559,7 +712,7 @@
         getElement("fi-speed").textContent = "—";
         getElement("fi-latitude").textContent = "—";
         getElement("fi-longitude").textContent = "—";
-        getElement("fi-map").textContent = "—";
+        getElement("fi-map-link").textContent = "—";
       }
 
       function formatDate(value) {
@@ -579,11 +732,122 @@
         }).format(date);
       }
 
-      function renderLocation(logRecord) {
+      function setMapPlaceholder(message, visible) {
+        var placeholder = getElement("fi-map-placeholder");
+
+        placeholder.textContent = message;
+        placeholder.hidden = !visible;
+      }
+
+      function initializeMap() {
+        if (leafletMap || !window.L) {
+          return;
+        }
+
+        leafletMap = window.L.map("fi-map-canvas", {
+          zoomControl: true,
+          attributionControl: true
+        }).setView([46.1512, 14.9955], 8);
+
+        window.L
+          .tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+              maxZoom: 19,
+              attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+            }
+          )
+          .addTo(leafletMap);
+
+        window.setTimeout(function () {
+          leafletMap.invalidateSize();
+        }, 100);
+      }
+
+      function clearMap(message) {
+        if (leafletMarker && leafletMap) {
+          leafletMap.removeLayer(leafletMarker);
+          leafletMarker = null;
+        }
+
+        setMapPlaceholder(
+          message || "GPS lokacija ni bila najdena.",
+          true
+        );
+      }
+
+      function renderMap(logRecord, vehicle) {
+        var latitude = Number(logRecord.latitude);
+        var longitude = Number(logRecord.longitude);
+
+        if (
+          !Number.isFinite(latitude) ||
+          !Number.isFinite(longitude)
+        ) {
+          clearMap("Koordinate za izbrano vozilo niso na voljo.");
+          return;
+        }
+
+        loadLeaflet()
+          .then(function () {
+            initializeMap();
+
+            if (leafletMarker) {
+              leafletMap.removeLayer(leafletMarker);
+            }
+
+            var popupHtml =
+              '<div class="fi-popup-title">' +
+              escapeHtml(vehicleDisplayName(vehicle)) +
+              "</div>" +
+              '<div class="fi-popup-line"><strong>Čas:</strong> ' +
+              escapeHtml(formatDate(logRecord.dateTime)) +
+              "</div>" +
+              '<div class="fi-popup-line"><strong>Hitrost:</strong> ' +
+              escapeHtml(
+                Number.isFinite(Number(logRecord.speed))
+                  ? Number(logRecord.speed).toFixed(0) + " km/h"
+                  : "—"
+              ) +
+              "</div>" +
+              '<div class="fi-popup-line"><strong>Koordinate:</strong> ' +
+              latitude.toFixed(6) +
+              ", " +
+              longitude.toFixed(6) +
+              "</div>";
+
+            leafletMarker = window.L
+              .marker([latitude, longitude])
+              .addTo(leafletMap)
+              .bindPopup(popupHtml);
+
+            leafletMap.setView([latitude, longitude], 15);
+
+            setMapPlaceholder("", false);
+
+            window.setTimeout(function () {
+              leafletMap.invalidateSize();
+              leafletMarker.openPopup();
+            }, 150);
+          })
+          .catch(function (error) {
+            console.error(error);
+
+            clearMap(
+              "OpenStreetMap zemljevida ni bilo mogoče naložiti."
+            );
+          });
+      }
+
+      function renderLocation(logRecord, vehicle) {
         if (!logRecord) {
           resetDetails();
-          getElement("fi-map").textContent =
+          clearMap("GPS lokacija ni bila najdena.");
+
+          getElement("fi-map-link").textContent =
             "GPS lokacija ni bila najdena.";
+
           return;
         }
 
@@ -608,18 +872,28 @@
           Number.isFinite(longitude)
         ) {
           var url =
-            "https://www.google.com/maps/search/?api=1&query=" +
-            encodeURIComponent(latitude + "," + longitude);
+            "https://www.openstreetmap.org/?mlat=" +
+            encodeURIComponent(latitude) +
+            "&mlon=" +
+            encodeURIComponent(longitude) +
+            "#map=16/" +
+            encodeURIComponent(latitude) +
+            "/" +
+            encodeURIComponent(longitude);
 
-          getElement("fi-map").innerHTML =
+          getElement("fi-map-link").innerHTML =
             '<a class="fi-map-link" href="' +
             escapeHtml(url) +
             '" target="_blank" rel="noopener noreferrer">' +
-            "Odpri v Google Maps" +
+            "Odpri v OpenStreetMap" +
             "</a>";
+
+          renderMap(logRecord, vehicle);
         } else {
-          getElement("fi-map").textContent =
+          getElement("fi-map-link").textContent =
             "Koordinate niso na voljo.";
+
+          clearMap("Koordinate za izbrano vozilo niso na voljo.");
         }
       }
 
@@ -640,7 +914,9 @@
 
         for (var index = 0; index < 30; index += 1) {
           var date = new Date(start);
+
           date.setDate(start.getDate() + index);
+
           result[createDateKey(date)] = 0;
         }
 
@@ -672,10 +948,6 @@
 
       function renderSpeedingChart(events) {
         if (typeof window.Chart !== "function") {
-          setStatus(
-            "Grafa ni mogoče prikazati, ker Chart.js ni na voljo.",
-            "error"
-          );
           return;
         }
 
@@ -784,7 +1056,7 @@
               );
             });
 
-          renderLocation(validRecords[0]);
+          renderLocation(validRecords[0], vehicle);
         });
       }
 
@@ -905,6 +1177,7 @@
 
         renderVehicles();
         resetDetails();
+        clearMap("Nalaganje zadnje GPS lokacije ...");
 
         getElement("fi-selected-name").textContent =
           vehicleDisplayName(vehicle);
@@ -1006,20 +1279,48 @@
             apiClient = api;
             bindEvents();
 
-            setStatus("Nalaganje Chart.js knjižnice ...");
+            setStatus("Nalaganje knjižnic ...");
 
-            loadChartJs()
-              .then(function () {
-                renderSpeedingChart([]);
-                setStatus("Add-in je pripravljen.", "success");
-              })
-              .catch(function (error) {
-                console.error(error);
+            Promise.allSettled([
+              loadChartJs(),
+              loadLeaflet()
+            ])
+              .then(function (results) {
+                var chartLoaded =
+                  results[0].status === "fulfilled";
 
-                setStatus(
-                  "Chart.js ni bilo mogoče naložiti. Tabela in GPS bosta še vedno delovala.",
-                  "error"
-                );
+                var leafletLoaded =
+                  results[1].status === "fulfilled";
+
+                if (chartLoaded) {
+                  renderSpeedingChart([]);
+                }
+
+                if (leafletLoaded) {
+                  initializeMap();
+                  clearMap(
+                    "Izberite vozilo za prikaz zadnje lokacije."
+                  );
+                }
+
+                if (chartLoaded && leafletLoaded) {
+                  setStatus("Add-in je pripravljen.", "success");
+                } else if (!chartLoaded && !leafletLoaded) {
+                  setStatus(
+                    "Zunanjih knjižnic ni bilo mogoče naložiti. Tabela in GPS podatki bodo še vedno na voljo.",
+                    "error"
+                  );
+                } else if (!chartLoaded) {
+                  setStatus(
+                    "OpenStreetMap deluje, grafa pa ni bilo mogoče naložiti.",
+                    "error"
+                  );
+                } else {
+                  setStatus(
+                    "Graf deluje, OpenStreetMap pa ni bilo mogoče naložiti.",
+                    "error"
+                  );
+                }
               })
               .finally(function () {
                 // CRITICAL: Always invoke the callback when setup is complete
@@ -1039,6 +1340,12 @@
             );
 
             loadVehicles();
+
+            window.setTimeout(function () {
+              if (leafletMap) {
+                leafletMap.invalidateSize();
+              }
+            }, 200);
           },
 
           // Triggered when the user navigates away from this page
