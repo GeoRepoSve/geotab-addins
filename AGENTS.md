@@ -1,5 +1,18 @@
 # AGENTS.md
 
+# IMPORTANT
+
+This repository contains production MyGeotab add-ins.
+
+The source of truth is always the current files in the repository.
+
+Before making any change:
+
+1. Read the complete current file.
+2. Modify it in place.
+3. Never regenerate an add-in from scratch unless explicitly requested.
+4. Preserve all working functionality.
+
 ## Source of truth
 
 - The production source of truth is:
