@@ -1,15 +1,16 @@
 {
   "name": "Fleet Intelligence",
   "supportEmail": "matej@svetkom.si",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "items": [
     {
-      "url": "https://GeoRepoSve.github.io/geotab-addins/fleet-intelligence/",
+      "url": "https://GeoRepoSve.github.io/geotab-addins/fleet-intelligence/?v=1.0.2",
       "path": "ActivityLink/",
       "menuName": {
         "en": "Fleet Intelligence",
         "sl": "Pregled voznega parka"
       }
     }
-  ]
+  ],
+  "isSigned": false
 }
