@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="sl">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fleet Intelligence</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
   <style>
     :root {
       color-scheme: light;
@@ -31,17 +32,18 @@
     }
 
     .fi-app {
-      padding: 18px;
+      width: 100%;
       max-width: 1320px;
       margin: 0 auto;
+      padding: 18px;
     }
 
     .fi-header {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       margin-bottom: 18px;
     }
 
@@ -83,11 +85,11 @@
     }
 
     .fi-card {
-      background: var(--fi-card);
+      overflow: hidden;
       border: 1px solid var(--fi-border);
       border-radius: 12px;
+      background: var(--fi-card);
       box-shadow: 0 1px 2px rgba(31, 35, 40, 0.05);
-      overflow: hidden;
     }
 
     .fi-card-header {
@@ -105,7 +107,15 @@
       padding: 10px 12px;
       border: 1px solid var(--fi-border);
       border-radius: 8px;
+      background: #ffffff;
+      color: var(--fi-text);
       font-size: 14px;
+      outline: none;
+    }
+
+    .fi-search:focus {
+      border-color: var(--fi-primary);
+      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.14);
     }
 
     .fi-table-wrap {
@@ -130,13 +140,14 @@
     .fi-table th {
       position: sticky;
       top: 0;
-      background: #f6f8fa;
       z-index: 1;
+      background: #f6f8fa;
       font-weight: 700;
     }
 
     .fi-vehicle-row {
       cursor: pointer;
+      transition: background 0.15s ease;
     }
 
     .fi-vehicle-row:hover,
@@ -188,8 +199,8 @@
       margin-bottom: 5px;
       color: var(--fi-muted);
       font-size: 12px;
-      text-transform: uppercase;
       letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
 
     .fi-value {
@@ -208,8 +219,9 @@
     }
 
     .fi-chart-wrap {
+      position: relative;
       min-height: 320px;
-      padding: 8px 0 0;
+      padding-top: 8px;
     }
 
     @media (max-width: 860px) {
@@ -218,56 +230,118 @@
         grid-template-columns: 1fr;
       }
     }
+
+    @media (max-width: 560px) {
+      .fi-app {
+        padding: 12px;
+      }
+
+      .fi-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .fi-title {
+        font-size: 22px;
+      }
+    }
   </style>
-</head>
-<body>
+
   <main class="fi-app" id="fleet-intelligence-app">
     <header class="fi-header">
       <div>
         <h1 class="fi-title">Fleet Intelligence</h1>
-        <p class="fi-subtitle">Search vehicles, inspect the latest GPS location, and review speeding events from the last 30 days.</p>
+        <p class="fi-subtitle">
+          Vozila, zadnje GPS lokacije in prekoračitve hitrosti v zadnjih 30 dneh.
+        </p>
       </div>
-      <div class="fi-status" id="fi-status" role="status" aria-live="polite">Initializing add-in...</div>
+
+      <div
+        class="fi-status"
+        id="fi-status"
+        role="status"
+        aria-live="polite"
+      >
+        Inicializacija add-ina ...
+      </div>
     </header>
 
-    <section class="fi-grid" aria-label="Fleet intelligence dashboard">
+    <section class="fi-grid" aria-label="Fleet intelligence nadzorna plošča">
       <article class="fi-card">
         <div class="fi-card-header">
-          <h2>Vehicles</h2>
-          <input class="fi-search" id="fi-search" type="search" placeholder="Search by vehicle name, serial number, VIN, or license plate" aria-label="Search vehicles">
+          <h2>Vozila</h2>
+          <input
+            class="fi-search"
+            id="fi-search"
+            type="search"
+            placeholder="Išči po imenu, serijski številki, VIN ali registraciji"
+            aria-label="Iskanje vozil"
+          >
         </div>
+
         <div class="fi-table-wrap">
           <table class="fi-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Serial</th>
+                <th>Ime</th>
+                <th>Registracija</th>
                 <th>VIN</th>
               </tr>
             </thead>
             <tbody id="fi-vehicle-table"></tbody>
           </table>
-          <div class="fi-empty" id="fi-empty" hidden>No vehicles found.</div>
+
+          <div class="fi-empty" id="fi-empty" hidden>
+            Ni najdenih vozil.
+          </div>
         </div>
       </article>
 
       <section class="fi-details">
         <article class="fi-card fi-panel">
-          <h2>Latest GPS Location</h2>
-          <p class="fi-selected-name" id="fi-selected-name">Select a vehicle to load location and speeding data.</p>
+          <h2>Zadnja GPS lokacija</h2>
+
+          <p class="fi-selected-name" id="fi-selected-name">
+            Izberite vozilo za prikaz lokacije in prekoračitev hitrosti.
+          </p>
+
           <div class="fi-location-grid">
-            <div class="fi-metric"><span class="fi-label">Date and time</span><span class="fi-value" id="fi-date">-</span></div>
-            <div class="fi-metric"><span class="fi-label">Speed</span><span class="fi-value" id="fi-speed">-</span></div>
-            <div class="fi-metric"><span class="fi-label">Latitude</span><span class="fi-value" id="fi-latitude">-</span></div>
-            <div class="fi-metric"><span class="fi-label">Longitude</span><span class="fi-value" id="fi-longitude">-</span></div>
-            <div class="fi-metric"><span class="fi-label">Map</span><span class="fi-value" id="fi-map">-</span></div>
+            <div class="fi-metric">
+              <span class="fi-label">Datum in čas</span>
+              <span class="fi-value" id="fi-date">—</span>
+            </div>
+
+            <div class="fi-metric">
+              <span class="fi-label">Hitrost</span>
+              <span class="fi-value" id="fi-speed">—</span>
+            </div>
+
+            <div class="fi-metric">
+              <span class="fi-label">Zemljepisna širina</span>
+              <span class="fi-value" id="fi-latitude">—</span>
+            </div>
+
+            <div class="fi-metric">
+              <span class="fi-label">Zemljepisna dolžina</span>
+              <span class="fi-value" id="fi-longitude">—</span>
+            </div>
+
+            <div class="fi-metric">
+              <span class="fi-label">Zemljevid</span>
+              <span class="fi-value" id="fi-map">—</span>
+            </div>
           </div>
         </article>
 
         <article class="fi-card fi-panel">
-          <h2>Speeding Events - Last 30 Days</h2>
+          <h2>Prekoračitve hitrosti – zadnjih 30 dni</h2>
+
           <div class="fi-chart-wrap">
-            <canvas id="fi-speeding-chart" aria-label="Speeding events grouped by date" role="img"></canvas>
+            <canvas
+              id="fi-speeding-chart"
+              aria-label="Prekoračitve hitrosti po dnevih"
+              role="img"
+            ></canvas>
           </div>
         </article>
       </section>
@@ -276,12 +350,19 @@
 
   <script>
     (function () {
+      "use strict";
+
       var apiClient = null;
       var vehicles = [];
       var filteredVehicles = [];
       var selectedVehicleId = null;
       var speedingChart = null;
       var eventsBound = false;
+      var chartLoadPromise = null;
+      var speedingRuleIds = [];
+
+      var CHART_JS_URL =
+        "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js";
 
       function getElement(id) {
         return document.getElementById(id);
@@ -289,14 +370,20 @@
 
       function setStatus(message, type) {
         var status = getElement("fi-status");
+
+        if (!status) {
+          return;
+        }
+
         status.textContent = message;
         status.className = "fi-status" + (type ? " " + type : "");
       }
 
       function safeText(value, fallback) {
         if (value === null || value === undefined || value === "") {
-          return fallback || "-";
+          return fallback || "—";
         }
+
         return String(value);
       }
 
@@ -312,22 +399,98 @@
         });
       }
 
-      function callApi(typeName, params) {
-        return new Promise(function (resolve, reject) {
-          if (!apiClient || typeof apiClient.call !== "function") {
-            reject(new Error("The MyGeotab API client is not available."));
+      function loadChartJs() {
+        if (typeof window.Chart === "function") {
+          return Promise.resolve(window.Chart);
+        }
+
+        if (chartLoadPromise) {
+          return chartLoadPromise;
+        }
+
+        chartLoadPromise = new Promise(function (resolve, reject) {
+          var existingScript = document.querySelector(
+            'script[data-fi-chartjs="true"]'
+          );
+
+          if (existingScript) {
+            existingScript.addEventListener("load", function () {
+              if (typeof window.Chart === "function") {
+                resolve(window.Chart);
+              } else {
+                reject(new Error("Chart.js se ni pravilno inicializiral."));
+              }
+            });
+
+            existingScript.addEventListener("error", function () {
+              reject(new Error("Chart.js knjižnice ni bilo mogoče naložiti."));
+            });
+
             return;
           }
 
-          apiClient.call("Get", {
-            typeName: typeName,
-            search: params.search || {},
-            resultsLimit: params.resultsLimit
-          }, resolve, function (error) {
-            var message = error && (error.message || error.name || error.toString()) || "Unknown Geotab API error.";
-            reject(new Error(message));
-          });
+          var script = document.createElement("script");
+          script.src = CHART_JS_URL;
+          script.async = true;
+          script.dataset.fiChartjs = "true";
+
+          script.onload = function () {
+            if (typeof window.Chart === "function") {
+              resolve(window.Chart);
+            } else {
+              reject(new Error("Chart.js se ni pravilno inicializiral."));
+            }
+          };
+
+          script.onerror = function () {
+            reject(new Error("Chart.js knjižnice ni bilo mogoče naložiti."));
+          };
+
+          document.body.appendChild(script);
         });
+
+        return chartLoadPromise;
+      }
+
+      function apiGet(typeName, search, resultsLimit) {
+        return new Promise(function (resolve, reject) {
+          if (!apiClient || typeof apiClient.call !== "function") {
+            reject(new Error("MyGeotab API ni na voljo."));
+            return;
+          }
+
+          apiClient.call(
+            "Get",
+            {
+              typeName: typeName,
+              search: search || {},
+              resultsLimit: resultsLimit || 50000
+            },
+            function (result) {
+              resolve(Array.isArray(result) ? result : []);
+            },
+            function (error) {
+              var message =
+                error &&
+                (error.message || error.name || error.toString());
+
+              reject(
+                new Error(message || "Neznana napaka MyGeotab API.")
+              );
+            }
+          );
+        });
+      }
+
+      function vehicleDisplayName(vehicle) {
+        return (
+          vehicle.name ||
+          vehicle.licensePlate ||
+          vehicle.vehicleIdentificationNumber ||
+          vehicle.serialNumber ||
+          vehicle.id ||
+          "Neimenovano vozilo"
+        );
       }
 
       function vehicleSearchText(vehicle) {
@@ -335,177 +498,438 @@
           vehicle.name,
           vehicle.serialNumber,
           vehicle.vehicleIdentificationNumber,
-          vehicle.licensePlate
-        ].map(function (value) { return safeText(value, "").toLowerCase(); }).join(" ");
+          vehicle.licensePlate,
+          vehicle.id
+        ]
+          .map(function (value) {
+            return safeText(value, "").toLocaleLowerCase("sl");
+          })
+          .join(" ");
       }
 
       function renderVehicles() {
         var tableBody = getElement("fi-vehicle-table");
         var empty = getElement("fi-empty");
-        tableBody.innerHTML = filteredVehicles.map(function (vehicle) {
-          var selectedClass = vehicle.id === selectedVehicleId ? " selected" : "";
-          return "<tr class=\"fi-vehicle-row" + selectedClass + "\" data-id=\"" + escapeHtml(vehicle.id) + "\">" +
-            "<td>" + escapeHtml(vehicle.name || "Unnamed vehicle") + "</td>" +
-            "<td>" + escapeHtml(vehicle.serialNumber) + "</td>" +
-            "<td>" + escapeHtml(vehicle.vehicleIdentificationNumber) + "</td>" +
-            "</tr>";
-        }).join("");
+
+        tableBody.innerHTML = filteredVehicles
+          .map(function (vehicle) {
+            var selectedClass =
+              vehicle.id === selectedVehicleId ? " selected" : "";
+
+            return (
+              '<tr class="fi-vehicle-row' +
+              selectedClass +
+              '" data-id="' +
+              escapeHtml(vehicle.id) +
+              '">' +
+              "<td><strong>" +
+              escapeHtml(vehicleDisplayName(vehicle)) +
+              "</strong></td>" +
+              "<td>" +
+              escapeHtml(vehicle.licensePlate || "—") +
+              "</td>" +
+              "<td>" +
+              escapeHtml(vehicle.vehicleIdentificationNumber || "—") +
+              "</td>" +
+              "</tr>"
+            );
+          })
+          .join("");
+
         empty.hidden = filteredVehicles.length > 0;
       }
 
       function filterVehicles() {
-        var query = getElement("fi-search").value.trim().toLowerCase();
-        filteredVehicles = query ? vehicles.filter(function (vehicle) {
-          return vehicleSearchText(vehicle).indexOf(query) !== -1;
-        }) : vehicles.slice();
+        var query = getElement("fi-search")
+          .value
+          .trim()
+          .toLocaleLowerCase("sl");
+
+        filteredVehicles = query
+          ? vehicles.filter(function (vehicle) {
+              return vehicleSearchText(vehicle).indexOf(query) !== -1;
+            })
+          : vehicles.slice();
+
         renderVehicles();
       }
 
       function resetDetails() {
-        getElement("fi-date").textContent = "-";
-        getElement("fi-speed").textContent = "-";
-        getElement("fi-latitude").textContent = "-";
-        getElement("fi-longitude").textContent = "-";
-        getElement("fi-map").textContent = "-";
+        getElement("fi-date").textContent = "—";
+        getElement("fi-speed").textContent = "—";
+        getElement("fi-latitude").textContent = "—";
+        getElement("fi-longitude").textContent = "—";
+        getElement("fi-map").textContent = "—";
       }
 
       function formatDate(value) {
         if (!value) {
-          return "-";
+          return "—";
         }
+
         var date = new Date(value);
-        return Number.isNaN(date.getTime()) ? safeText(value) : date.toLocaleString();
+
+        if (Number.isNaN(date.getTime())) {
+          return safeText(value);
+        }
+
+        return new Intl.DateTimeFormat("sl-SI", {
+          dateStyle: "medium",
+          timeStyle: "medium"
+        }).format(date);
       }
 
       function renderLocation(logRecord) {
         if (!logRecord) {
           resetDetails();
-          getElement("fi-map").textContent = "No GPS location found.";
+          getElement("fi-map").textContent =
+            "GPS lokacija ni bila najdena.";
           return;
         }
 
-        var latitude = logRecord.latitude;
-        var longitude = logRecord.longitude;
-        getElement("fi-date").textContent = formatDate(logRecord.dateTime);
-        getElement("fi-speed").textContent = logRecord.speed === null || logRecord.speed === undefined || logRecord.speed === "" ? "-" : safeText(logRecord.speed) + " km/h";
-        getElement("fi-latitude").textContent = safeText(latitude);
-        getElement("fi-longitude").textContent = safeText(longitude);
+        var latitude = Number(logRecord.latitude);
+        var longitude = Number(logRecord.longitude);
+        var speed = Number(logRecord.speed);
 
-        if (latitude !== undefined && longitude !== undefined) {
-          var url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(latitude + "," + longitude);
-          getElement("fi-map").innerHTML = "<a class=\"fi-map-link\" href=\"" + url + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open in Google Maps</a>";
+        getElement("fi-date").textContent =
+          formatDate(logRecord.dateTime);
+
+        getElement("fi-speed").textContent =
+          Number.isFinite(speed) ? speed.toFixed(0) + " km/h" : "—";
+
+        getElement("fi-latitude").textContent =
+          Number.isFinite(latitude) ? latitude.toFixed(6) : "—";
+
+        getElement("fi-longitude").textContent =
+          Number.isFinite(longitude) ? longitude.toFixed(6) : "—";
+
+        if (
+          Number.isFinite(latitude) &&
+          Number.isFinite(longitude)
+        ) {
+          var url =
+            "https://www.google.com/maps/search/?api=1&query=" +
+            encodeURIComponent(latitude + "," + longitude);
+
+          getElement("fi-map").innerHTML =
+            '<a class="fi-map-link" href="' +
+            escapeHtml(url) +
+            '" target="_blank" rel="noopener noreferrer">' +
+            "Odpri v Google Maps" +
+            "</a>";
         } else {
-          getElement("fi-map").textContent = "Coordinates unavailable.";
+          getElement("fi-map").textContent =
+            "Koordinate niso na voljo.";
         }
+      }
+
+      function createDateKey(date) {
+        return [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, "0"),
+          String(date.getDate()).padStart(2, "0")
+        ].join("-");
       }
 
       function groupEventsByDate(events) {
-        return events.reduce(function (groups, event) {
-          var day = event.activeFrom ? new Date(event.activeFrom).toISOString().slice(0, 10) : "Unknown";
-          groups[day] = (groups[day] || 0) + 1;
-          return groups;
-        }, {});
+        var result = {};
+        var start = new Date();
+
+        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+
+        for (var index = 0; index < 30; index += 1) {
+          var date = new Date(start);
+          date.setDate(start.getDate() + index);
+          result[createDateKey(date)] = 0;
+        }
+
+        events.forEach(function (event) {
+          var rawDate =
+            event.activeFrom ||
+            event.dateTime ||
+            event.activeTo;
+
+          if (!rawDate) {
+            return;
+          }
+
+          var eventDate = new Date(rawDate);
+
+          if (Number.isNaN(eventDate.getTime())) {
+            return;
+          }
+
+          var key = createDateKey(eventDate);
+
+          if (Object.prototype.hasOwnProperty.call(result, key)) {
+            result[key] += 1;
+          }
+        });
+
+        return result;
       }
 
       function renderSpeedingChart(events) {
-        if (typeof Chart !== "function") {
-          setStatus("Unable to display speeding chart: Chart.js is not available.", "error");
+        if (typeof window.Chart !== "function") {
+          setStatus(
+            "Grafa ni mogoče prikazati, ker Chart.js ni na voljo.",
+            "error"
+          );
           return;
         }
 
-        var context = getElement("fi-speeding-chart").getContext("2d");
+        var canvas = getElement("fi-speeding-chart");
+        var context = canvas.getContext("2d");
         var grouped = groupEventsByDate(events);
-        var labels = Object.keys(grouped).sort();
-        var data = labels.map(function (label) { return grouped[label]; });
+        var dateKeys = Object.keys(grouped).sort();
+
+        var labels = dateKeys.map(function (key) {
+          return new Intl.DateTimeFormat("sl-SI", {
+            day: "2-digit",
+            month: "2-digit"
+          }).format(new Date(key + "T00:00:00"));
+        });
+
+        var data = dateKeys.map(function (key) {
+          return grouped[key];
+        });
 
         if (speedingChart) {
           speedingChart.destroy();
         }
 
-        speedingChart = new Chart(context, {
+        speedingChart = new window.Chart(context, {
           type: "bar",
           data: {
             labels: labels,
-            datasets: [{
-              label: "Speeding events",
-              data: data,
-              backgroundColor: "rgba(31, 111, 235, 0.7)",
-              borderColor: "rgba(31, 111, 235, 1)",
-              borderWidth: 1
-            }]
+            datasets: [
+              {
+                label: "Prekoračitve hitrosti",
+                data: data,
+                backgroundColor: "rgba(31, 111, 235, 0.70)",
+                borderColor: "rgba(31, 111, 235, 1)",
+                borderWidth: 1,
+                borderRadius: 5,
+                maxBarThickness: 30
+              }
+            ]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: "index"
+            },
             scales: {
+              x: {
+                grid: {
+                  display: false
+                },
+                ticks: {
+                  autoSkip: true,
+                  maxTicksLimit: 15,
+                  maxRotation: 0
+                }
+              },
               y: {
                 beginAtZero: true,
-                ticks: { precision: 0 }
+                ticks: {
+                  precision: 0
+                }
               }
             },
             plugins: {
-              legend: { display: true },
-              tooltip: { enabled: true }
+              legend: {
+                display: false
+              },
+              tooltip: {
+                enabled: true
+              }
             }
           }
         });
       }
 
       function getSelectedVehicle() {
-        return vehicles.find(function (vehicle) { return vehicle.id === selectedVehicleId; });
+        return vehicles.find(function (vehicle) {
+          return vehicle.id === selectedVehicleId;
+        });
       }
 
       function loadLatestLocation(vehicle) {
-        return callApi("LogRecord", {
-          search: {
-            deviceSearch: { id: vehicle.id },
-            fromDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        var fromDate = new Date();
+
+        fromDate.setDate(fromDate.getDate() - 30);
+
+        return apiGet(
+          "LogRecord",
+          {
+            deviceSearch: {
+              id: vehicle.id
+            },
+            fromDate: fromDate.toISOString()
           },
-          resultsLimit: 100
-        }).then(function (records) {
-          var latestRecord = (records || []).sort(function (a, b) {
-            return new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
-          })[0];
-          renderLocation(latestRecord);
+          10000
+        ).then(function (records) {
+          var validRecords = records
+            .filter(function (record) {
+              return record && record.dateTime;
+            })
+            .sort(function (a, b) {
+              return (
+                new Date(b.dateTime).getTime() -
+                new Date(a.dateTime).getTime()
+              );
+            });
+
+          renderLocation(validRecords[0]);
+        });
+      }
+
+      function getSpeedingRuleIds() {
+        if (speedingRuleIds.length > 0) {
+          return Promise.resolve(speedingRuleIds);
+        }
+
+        return apiGet("Rule", {}, 50000).then(function (rules) {
+          var terms = [
+            "speed",
+            "speeding",
+            "over speed",
+            "over-speed",
+            "prekorač",
+            "hitrost"
+          ];
+
+          speedingRuleIds = rules
+            .filter(function (rule) {
+              var text = [
+                rule.name,
+                rule.comment,
+                rule.baseType
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLocaleLowerCase("sl");
+
+              return terms.some(function (term) {
+                return text.indexOf(term) !== -1;
+              });
+            })
+            .map(function (rule) {
+              return rule.id;
+            })
+            .filter(Boolean);
+
+          return speedingRuleIds;
         });
       }
 
       function loadSpeedingEvents(vehicle) {
-        var fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        return callApi("ExceptionEvent", {
-          search: {
-            deviceSearch: { id: vehicle.id },
-            fromDate: fromDate,
-            ruleSearch: { name: "%speed%" }
-          },
-          resultsLimit: 5000
-        }).then(function (events) {
-          var speedingEvents = (events || []).filter(function (event) {
-            var ruleName = event.rule && event.rule.name ? event.rule.name.toLowerCase() : "";
-            return ruleName.indexOf("speed") !== -1;
+        var fromDate = new Date();
+        var toDate = new Date();
+
+        fromDate.setDate(fromDate.getDate() - 30);
+
+        return getSpeedingRuleIds().then(function (ruleIds) {
+          if (ruleIds.length === 0) {
+            renderSpeedingChart([]);
+            return [];
+          }
+
+          var requests = ruleIds.map(function (ruleId) {
+            return apiGet(
+              "ExceptionEvent",
+              {
+                deviceSearch: {
+                  id: vehicle.id
+                },
+                ruleSearch: {
+                  id: ruleId
+                },
+                fromDate: fromDate.toISOString(),
+                toDate: toDate.toISOString()
+              },
+              50000
+            ).catch(function (error) {
+              console.warn(
+                "ExceptionEvent poizvedba ni uspela za pravilo:",
+                ruleId,
+                error
+              );
+
+              return [];
+            });
           });
-          renderSpeedingChart(speedingEvents);
+
+          return Promise.all(requests).then(function (groups) {
+            var events = groups.reduce(function (all, group) {
+              return all.concat(group);
+            }, []);
+
+            var uniqueEvents = [];
+            var knownIds = {};
+
+            events.forEach(function (event) {
+              var key =
+                event.id ||
+                [
+                  event.device && event.device.id,
+                  event.rule && event.rule.id,
+                  event.activeFrom
+                ].join("|");
+
+              if (!knownIds[key]) {
+                knownIds[key] = true;
+                uniqueEvents.push(event);
+              }
+            });
+
+            renderSpeedingChart(uniqueEvents);
+
+            return uniqueEvents;
+          });
         });
       }
 
       function selectVehicle(vehicleId) {
         selectedVehicleId = vehicleId;
+
         var vehicle = getSelectedVehicle();
+
         if (!vehicle) {
           return;
         }
 
         renderVehicles();
         resetDetails();
-        getElement("fi-selected-name").textContent = vehicle.name || "Selected vehicle";
-        setStatus("Loading data for " + (vehicle.name || vehicle.id) + "...");
 
-        Promise.all([loadLatestLocation(vehicle), loadSpeedingEvents(vehicle)])
+        getElement("fi-selected-name").textContent =
+          vehicleDisplayName(vehicle);
+
+        setStatus(
+          "Nalaganje podatkov za " +
+          vehicleDisplayName(vehicle) +
+          " ..."
+        );
+
+        Promise.all([
+          loadLatestLocation(vehicle),
+          loadSpeedingEvents(vehicle)
+        ])
           .then(function () {
-            setStatus("Vehicle data loaded.", "success");
+            setStatus("Podatki vozila so naloženi.", "success");
           })
           .catch(function (error) {
-            setStatus("Unable to load selected vehicle data: " + error.message, "error");
+            console.error(error);
+
+            setStatus(
+              "Podatkov izbranega vozila ni bilo mogoče naložiti: " +
+              error.message,
+              "error"
+            );
           });
       }
 
@@ -515,54 +939,116 @@
         }
 
         eventsBound = true;
-        getElement("fi-search").addEventListener("input", filterVehicles);
-        getElement("fi-vehicle-table").addEventListener("click", function (event) {
-          var row = event.target.closest(".fi-vehicle-row");
-          if (row) {
-            selectVehicle(row.getAttribute("data-id"));
+
+        getElement("fi-search").addEventListener(
+          "input",
+          filterVehicles
+        );
+
+        getElement("fi-vehicle-table").addEventListener(
+          "click",
+          function (event) {
+            var row = event.target.closest(".fi-vehicle-row");
+
+            if (row) {
+              selectVehicle(row.getAttribute("data-id"));
+            }
           }
-        });
+        );
       }
 
       function loadVehicles() {
-        setStatus("Loading vehicles...");
-        return callApi("Device", {
-          search: {},
-          resultsLimit: 50000
-        }).then(function (devices) {
-          vehicles = (devices || []).sort(function (a, b) {
-            return safeText(a.name, "").localeCompare(safeText(b.name, ""));
+        setStatus("Nalaganje vozil ...");
+
+        return apiGet("Device", {}, 50000)
+          .then(function (devices) {
+            vehicles = devices.sort(function (a, b) {
+              return vehicleDisplayName(a).localeCompare(
+                vehicleDisplayName(b),
+                "sl",
+                {
+                  sensitivity: "base"
+                }
+              );
+            });
+
+            filteredVehicles = vehicles.slice();
+            renderVehicles();
+
+            setStatus(
+              "Naloženih vozil: " + vehicles.length + ".",
+              "success"
+            );
+
+            if (!selectedVehicleId && vehicles.length > 0) {
+              selectVehicle(vehicles[0].id);
+            }
+          })
+          .catch(function (error) {
+            console.error(error);
+
+            setStatus(
+              "Vozil ni bilo mogoče naložiti: " +
+              error.message,
+              "error"
+            );
           });
-          filteredVehicles = vehicles.slice();
-          renderVehicles();
-          setStatus("Loaded " + vehicles.length + " vehicles.", "success");
-        }).catch(function (error) {
-          setStatus("Unable to load vehicles: " + error.message, "error");
-        });
       }
 
       window.geotab = window.geotab || {};
       window.geotab.addin = window.geotab.addin || {};
+
+      // Official Geotab SDK Lifecycle Boilerplate
       window.geotab.addin.fleetIntelligence = function () {
         return {
+          // Triggered when the Add-In is loaded into the DOM
           initialize: function (api, state, callback) {
             apiClient = api;
             bindEvents();
 
-            if (typeof callback === "function") {
-              callback();
-            }
+            setStatus("Nalaganje Chart.js knjižnice ...");
+
+            loadChartJs()
+              .then(function () {
+                renderSpeedingChart([]);
+                setStatus("Add-in je pripravljen.", "success");
+              })
+              .catch(function (error) {
+                console.error(error);
+
+                setStatus(
+                  "Chart.js ni bilo mogoče naložiti. Tabela in GPS bosta še vedno delovala.",
+                  "error"
+                );
+              })
+              .finally(function () {
+                // CRITICAL: Always invoke the callback when setup is complete
+                if (typeof callback === "function") {
+                  callback();
+                }
+              });
+          },
+
+          // Triggered whenever the user navigates onto this specific page
+          focus: function (api, state) {
+            apiClient = api;
+
+            console.log(
+              "Add-In page focused. Executing data workflows...",
+              state
+            );
 
             loadVehicles();
           },
-          focus: function (api, state) {
-            apiClient = api;
-            if (!vehicles.length) {
-              loadVehicles();
-            }
-          },
+
+          // Triggered when the user navigates away from this page
           blur: function (api, state) {
-            setStatus("Fleet Intelligence paused.");
+            console.log(
+              "Add-In page blurred. Teardown active listeners.",
+              state
+            );
+
+            setStatus("Fleet Intelligence je začasno ustavljen.");
           }
         };
       };
