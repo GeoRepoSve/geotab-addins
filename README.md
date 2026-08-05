@@ -11,7 +11,7 @@ This repository hosts the **Fleet Intelligence** MyGeotab add-in for GitHub Page
 
 After GitHub Pages is enabled, the add-in entry point should be available at:
 
-`https://GeoRepoSve.github.io/geotab-addins/fleet-intelligence/`
+`https://GeoRepoSve.github.io/geotab-addins/fleet-intelligence/?v=1.0.2`
 
 Use this configuration URL when registering the add-in in MyGeotab:
 
@@ -33,7 +33,7 @@ Use this configuration URL when registering the add-in in MyGeotab:
 - Add-in namespace: `geotab.addin.fleetIntelligence`
 - Lifecycle methods: `initialize(api, state, callback)`, `focus(api, state)`, and `blur(api, state)`
 - Support email: `matej@svetkom.si`
-- Version: `1.0.0`
+- Version: `1.0.2`
 
 ## Validation
 
