@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fuel Reconciliation</title>
+<title>Preverjanje polnjenj goriva</title>
 </head>
 <body>
 <style>
@@ -78,7 +78,7 @@
 
 <main class="fr-app" id="fuel-reconciliation-app">
   <div class="fr-wrap">
-    <h1 class="fr-title">Preverjanje polnjenj</h1>
+    <h1 class="fr-title">Preverjanje polnjenj goriva</h1>
     <p class="fr-subtitle">Primerjava transakcij s plačilnih kartic (Petrol, DKV) z zaznanimi polnjenji vozil v Geotabu.</p>
     <p class="fr-status" id="fr-status" role="status" aria-live="polite">Inicializacija add-ina ...</p>
 
@@ -465,7 +465,7 @@
         loadData();
       },
       blur: function (api, state) {
-        setStatus("Preverjanje polnjenj je začasno ustavljeno.");
+        setStatus("Preverjanje polnjenj goriva je začasno ustavljeno.");
       }
     };
   };
