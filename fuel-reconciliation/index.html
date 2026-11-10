@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuel Reconciliation</title>
+</head>
+<body>
+<style>
+  :root {
+    --fr-primary: #1f6feb;
+    --fr-text: #1f2328;
+    --fr-muted: #59636e;
+    --fr-border: #d1d9e0;
+    --fr-bg: #f6f8fa;
+    --fr-card: #ffffff;
+    --fr-ok: #1a7f37;
+    --fr-ok-bg: #dafbe1;
+    --fr-warn: #9a6700;
+    --fr-warn-bg: #fff8c5;
+    --fr-bad: #cf222e;
+    --fr-bad-bg: #ffebe9;
+    --fr-info: #0969da;
+    --fr-info-bg: #ddf4ff;
+    --fr-gray-bg: #eff2f5;
+  }
+  .fr-app { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--fr-text);
+    background: var(--fr-bg); padding: 16px; box-sizing: border-box; min-height: 100%; }
+  .fr-app * { box-sizing: border-box; }
+  .fr-wrap { max-width: 1320px; margin: 0 auto; }
+  .fr-title { font-size: 22px; margin: 0 0 4px 0; }
+  .fr-subtitle { color: var(--fr-muted); margin: 0 0 12px 0; font-size: 14px; }
+  .fr-status { font-size: 13px; color: var(--fr-muted); margin: 0 0 12px 0; min-height: 18px; }
+  .fr-status.error { color: var(--fr-bad); }
+  .fr-status.success { color: var(--fr-ok); }
+  .fr-card { background: var(--fr-card); border: 1px solid var(--fr-border); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  .fr-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .fr-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fr-muted); }
+  .fr-field select, .fr-field input { font-size: 14px; padding: 6px 8px; border: 1px solid var(--fr-border);
+    border-radius: 6px; background: #fff; color: var(--fr-text); min-width: 160px; }
+  .fr-btn { font-size: 14px; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--fr-primary);
+    background: var(--fr-primary); color: #fff; cursor: pointer; }
+  .fr-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .fr-tile { background: var(--fr-card); border: 1px solid var(--fr-border); border-radius: 8px; padding: 12px;
+    cursor: pointer; border-left-width: 4px; }
+  .fr-tile.active { outline: 2px solid var(--fr-primary); }
+  .fr-tile-num { font-size: 24px; font-weight: 600; }
+  .fr-tile-label { font-size: 12px; color: var(--fr-muted); }
+  .fr-tile.ok { border-left-color: var(--fr-ok); }
+  .fr-tile.bad { border-left-color: var(--fr-bad); }
+  .fr-tile.warn { border-left-color: var(--fr-warn); }
+  .fr-tile.info { border-left-color: var(--fr-info); }
+  .fr-tile.gray { border-left-color: var(--fr-muted); }
+  .fr-table-wrap { overflow-x: auto; }
+  .fr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .fr-table th { text-align: left; font-weight: 600; color: var(--fr-muted); border-bottom: 1px solid var(--fr-border);
+    padding: 8px 6px; white-space: nowrap; background: var(--fr-card); position: sticky; top: 0; }
+  .fr-table td { border-bottom: 1px solid var(--fr-border); padding: 7px 6px; vertical-align: top; }
+  .fr-table td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .fr-table td.nowrap { white-space: nowrap; }
+  .fr-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; white-space: nowrap; }
+  .fr-badge.ok { background: var(--fr-ok-bg); color: var(--fr-ok); }
+  .fr-badge.bad { background: var(--fr-bad-bg); color: var(--fr-bad); }
+  .fr-badge.warn { background: var(--fr-warn-bg); color: var(--fr-warn); }
+  .fr-badge.info { background: var(--fr-info-bg); color: var(--fr-info); }
+  .fr-badge.gray { background: var(--fr-gray-bg); color: var(--fr-muted); }
+  .fr-small { color: var(--fr-muted); font-size: 12px; }
+  .fr-diff-bad { color: var(--fr-bad); font-weight: 600; }
+  .fr-empty { color: var(--fr-muted); padding: 16px 0; text-align: center; }
+  .fr-legend { font-size: 12px; color: var(--fr-muted); line-height: 1.6; }
+  .fr-app a { color: var(--fr-primary); text-decoration: none; }
+  @media (max-width: 560px) {
+    .fr-app { padding: 10px; }
+    .fr-field select, .fr-field input { min-width: 0; width: 100%; }
+    .fr-field { width: 100%; }
+  }
+</style>
+
+<main class="fr-app" id="fuel-reconciliation-app">
+  <div class="fr-wrap">
+    <h1 class="fr-title">Preverjanje polnjenj</h1>
+    <p class="fr-subtitle">Primerjava transakcij s plačilnih kartic (Petrol, DKV) z zaznanimi polnjenji vozil v Geotabu.</p>
+    <p class="fr-status" id="fr-status" role="status" aria-live="polite">Inicializacija add-ina ...</p>
+
+    <div class="fr-card">
+      <div class="fr-filters">
+        <label class="fr-field">Obdobje
+          <select id="fr-period">
+            <option value="7">Zadnjih 7 dni</option>
+            <option value="14" selected>Zadnjih 14 dni</option>
+            <option value="30">Zadnjih 30 dni</option>
+            <option value="90">Zadnjih 90 dni</option>
+          </select>
+        </label>
+        <label class="fr-field">Status
+          <select id="fr-filter-status">
+            <option value="ALL">Vsi</option>
+            <option value="ISSUES" selected>Samo odstopanja</option>
+            <option value="OK">Ujemanje</option>
+            <option value="PARTIAL">Delno ujemanje</option>
+            <option value="VOLUME">Odstopanje litrov</option>
+            <option value="LOCATION">Odstopanje lokacije</option>
+            <option value="VOLUME_LOCATION">Odstopanje litrov in lokacije</option>
+            <option value="NO_FILLUP">Polnjenje ni zaznano</option>
+            <option value="NO_FILLUP_DATA">Vozilo nima podatkov o polnjenjih</option>
+            <option value="NO_TRANSACTION">Polnjenje brez transakcije</option>
+            <option value="PENDING">V obdelavi</option>
+            <option value="NOT_CHECKED">Ni preverjeno</option>
+          </select>
+        </label>
+        <label class="fr-field">Vozilo
+          <input id="fr-search" type="search" placeholder="Ime ali registrska ...">
+        </label>
+        <button class="fr-btn" id="fr-refresh" type="button">Osveži</button>
+      </div>
+    </div>
+
+    <div class="fr-tiles" id="fr-tiles"></div>
+
+    <div class="fr-card">
+      <div class="fr-table-wrap">
+        <table class="fr-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Vozilo</th>
+              <th>Vir</th>
+              <th>Transakcija</th>
+              <th>Litri (račun)</th>
+              <th>Polnjenje (Geotab)</th>
+              <th>Litri (Geotab)</th>
+              <th>Razlika</th>
+              <th>Razdalja</th>
+              <th>Opombe</th>
+            </tr>
+          </thead>
+          <tbody id="fr-table-body"></tbody>
+        </table>
+      </div>
+      <div class="fr-empty" id="fr-empty" style="display:none;">Ni zapisov za izbrane filtre.</div>
+      <div class="fr-small" id="fr-more"></div>
+    </div>
+
+    <div class="fr-card fr-legend" id="fr-legend"></div>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // Mora biti enak kot ADDIN_ID v Reconciliation/config.py
+  var ADDIN_ID = "a6hq1LD5yTTqx6S8PtpderA";
+  var MAX_ROWS = 500;
+
+  var STATUS = {
+    OK: { label: "Ujemanje", cls: "ok" },
+    PARTIAL: { label: "Delno ujemanje", cls: "info" },
+    VOLUME: { label: "Odstopanje litrov", cls: "bad" },
+    LOCATION: { label: "Odstopanje lokacije", cls: "bad" },
+    VOLUME_LOCATION: { label: "Odstopanje litrov in lokacije", cls: "bad" },
+    NO_FILLUP: { label: "Polnjenje ni zaznano", cls: "bad" },
+    NO_FILLUP_DATA: { label: "Vozilo nima podatkov o polnjenjih", cls: "gray" },
+    NO_TRANSACTION: { label: "Polnjenje brez transakcije", cls: "warn" },
+    PENDING: { label: "V obdelavi", cls: "info" },
+    NOT_CHECKED: { label: "Ni preverjeno", cls: "gray" }
+  };
+  var ISSUE_STATUSES = ["VOLUME", "LOCATION", "VOLUME_LOCATION", "NO_FILLUP", "NO_TRANSACTION"];
+
+  var TILES = [
+    { key: "OK", label: "Ujemanje", cls: "ok", statuses: ["OK", "PARTIAL"] },
+    { key: "DEV", label: "Odstopanje litrov / lokacije", cls: "bad", statuses: ["VOLUME", "LOCATION", "VOLUME_LOCATION"] },
+    { key: "NO_FILLUP", label: "Polnjenje ni zaznano", cls: "bad", statuses: ["NO_FILLUP"] },
+    { key: "NO_TRANSACTION", label: "Polnjenje brez transakcije", cls: "warn", statuses: ["NO_TRANSACTION"] },
+    { key: "PENDING", label: "V obdelavi", cls: "info", statuses: ["PENDING"] },
+    { key: "OTHER", label: "Ni preverjeno / brez podatkov", cls: "gray", statuses: ["NOT_CHECKED", "NO_FILLUP_DATA"] }
+  ];
+
+  var apiClient = null;
+  var allRows = [];
+  var meta = null;
+  var activeTile = null;
+  var eventsBound = false;
+  var loading = false;
+
+  function getElement(id) { return document.getElementById(id); }
+
+  function setStatus(message, type) {
+    var el = getElement("fr-status");
+    if (!el) { return; }
+    el.textContent = message;
+    el.className = "fr-status" + (type ? " " + type : "");
+  }
+
+  function escapeHtml(value) {
+    if (value === null || value === undefined) { return ""; }
+    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function formatDate(iso) {
+    if (!iso) { return ""; }
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) { return ""; }
+    try {
+      return new Intl.DateTimeFormat("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit" }).format(d);
+    } catch (e) {
+      return d.toLocaleString();
+    }
+  }
+
+  function formatNum(value, digits) {
+    if (value === null || value === undefined || value === "") { return ""; }
+    var n = Number(value);
+    if (isNaN(n)) { return ""; }
+    return n.toLocaleString("sl-SI", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  }
+
+  function mapLink(lat, lon, text) {
+    if (lat === undefined || lon === undefined || lat === null || lon === null) { return ""; }
+    var url = "https://www.openstreetmap.org/?mlat=" + lat + "&mlon=" + lon + "#map=17/" + lat + "/" + lon;
+    return '<a href="' + url + '" target="_blank" rel="noopener">' + escapeHtml(text) + "</a>";
+  }
+
+  function apiGet(typeName, search) {
+    return new Promise(function (resolve, reject) {
+      apiClient.call("Get", { typeName: typeName, search: search || {} }, function (result) {
+        resolve(result instanceof Array ? result : []);
+      }, function (error) {
+        reject(error);
+      });
+    });
+  }
+
+  function errorText(error) {
+    if (!error) { return "neznana napaka"; }
+    return error.message || error.name || error.toString();
+  }
+
+  function parseDetails(record) {
+    var details = record.details;
+    if (typeof details === "string") {
+      try { details = JSON.parse(details); } catch (e) { details = null; }
+    }
+    return details || {};
+  }
+
+  function loadData() {
+    if (loading || !apiClient) { return Promise.resolve(); }
+    loading = true;
+    setStatus("Nalaganje podatkov ...");
+    return apiGet("AddInData", { addInId: ADDIN_ID }).then(function (records) {
+      // dan -> hash -> zapisi (med posodabljanjem lahko za kratek cas obstajata dve verziji dneva)
+      var days = {};
+      var i, d, details;
+      meta = null;
+      for (i = 0; i < records.length; i++) {
+        details = parseDetails(records[i]);
+        if (details.type === "meta") {
+          meta = details;
+        } else if (details.type === "day" && details.date) {
+          if (!days[details.date]) { days[details.date] = { hash: details.hash, rows: [] }; }
+          if (days[details.date].hash === details.hash && details.rows instanceof Array) {
+            days[details.date].rows = days[details.date].rows.concat(details.rows);
+          }
+        }
+      }
+      allRows = [];
+      for (d in days) {
+        if (days.hasOwnProperty(d)) {
+          for (i = 0; i < days[d].rows.length; i++) {
+            days[d].rows[i]._day = d;
+            allRows.push(days[d].rows[i]);
+          }
+        }
+      }
+      allRows.sort(function (a, b) {
+        var ta = a.tt || a.ft || "";
+        var tb = b.tt || b.ft || "";
+        return ta < tb ? 1 : (ta > tb ? -1 : 0);
+      });
+      render();
+      if (!records.length) {
+        setStatus("Za to bazo še ni rezultatov preverjanja.", "error");
+      } else {
+        setStatus("Zadnje preverjanje: " + (meta && meta.lastRun ? formatDate(meta.lastRun) : "neznano"), "success");
+      }
+    }).catch(function (error) {
+      console.error("Fuel Reconciliation:", error);
+      setStatus("Napaka pri nalaganju: " + errorText(error), "error");
+    }).then(function () {
+      loading = false;
+    });
+  }
+
+  function periodRows() {
+    var days = parseInt(getElement("fr-period").value, 10) || 14;
+    var cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - days);
+    var out = [];
+    for (var i = 0; i < allRows.length; i++) {
+      var t = new Date(allRows[i].tt || allRows[i].ft);
+      if (!isNaN(t.getTime()) && t >= cutoff) { out.push(allRows[i]); }
+    }
+    return out;
+  }
+
+  function inList(value, list) {
+    for (var i = 0; i < list.length; i++) { if (list[i] === value) { return true; } }
+    return false;
+  }
+
+  function filterRows(rows) {
+    var status = getElement("fr-filter-status").value;
+    var query = (getElement("fr-search").value || "").toLocaleLowerCase("sl");
+    var tile = null;
+    var i;
+    for (i = 0; i < TILES.length; i++) { if (TILES[i].key === activeTile) { tile = TILES[i]; } }
+    var out = [];
+    for (i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (tile) {
+        if (!inList(r.s, tile.statuses)) { continue; }
+      } else if (status === "ISSUES") {
+        if (!inList(r.s, ISSUE_STATUSES)) { continue; }
+      } else if (status !== "ALL" && r.s !== status) {
+        continue;
+      }
+      if (query) {
+        var text = ((r.v || "") + " " + (r.p || "")).toLocaleLowerCase("sl");
+        if (text.indexOf(query) === -1) { continue; }
+      }
+      out.push(r);
+    }
+    return out;
+  }
+
+  function renderTiles(rows) {
+    var html = "";
+    for (var t = 0; t < TILES.length; t++) {
+      var count = 0;
+      for (var i = 0; i < rows.length; i++) {
+        if (inList(rows[i].s, TILES[t].statuses)) { count++; }
+      }
+      html += '<div class="fr-tile ' + TILES[t].cls + (activeTile === TILES[t].key ? " active" : "") +
+        '" data-tile="' + TILES[t].key + '" role="button" tabindex="0">' +
+        '<div class="fr-tile-num">' + count + "</div>" +
+        '<div class="fr-tile-label">' + escapeHtml(TILES[t].label) + "</div></div>";
+    }
+    getElement("fr-tiles").innerHTML = html;
+  }
+
+  function diffCell(r) {
+    var parts = [];
+    var tol = meta && meta.tolerances ? meta.tolerances : { volumePct: 7, locationM: 200 };
+    if (r.dp !== undefined) {
+      var bad = Math.abs(r.dp) > tol.volumePct;
+      parts.push('<span class="' + (bad ? "fr-diff-bad" : "") + '">' + (r.dp > 0 ? "+" : "") +
+        formatNum(r.dp, 1) + " %</span>" + (r.dl !== undefined ? ' <span class="fr-small">(' +
+        (r.dl > 0 ? "+" : "") + formatNum(r.dl, 1) + " L)</span>" : ""));
+    }
+    if (r.dmin !== undefined) {
+      parts.push('<span class="fr-small">' + (r.dmin > 0 ? "+" : "") + r.dmin + " min</span>");
+    }
+    return parts.join("<br>");
+  }
+
+  function distanceCell(r) {
+    var tol = meta && meta.tolerances ? meta.tolerances : { locationM: 200 };
+    var d = r.dm !== undefined ? r.dm : r.vdm;
+    if (d === undefined) { return ""; }
+    var cls = d > tol.locationM ? "fr-diff-bad" : "";
+    return '<span class="' + cls + '">' + formatNum(d, 0) + " m</span>";
+  }
+
+  function renderTable(rows) {
+    var body = getElement("fr-table-body");
+    var shown = rows.slice(0, MAX_ROWS);
+    var html = "";
+    for (var i = 0; i < shown.length; i++) {
+      var r = shown[i];
+      var st = STATUS[r.s] || { label: r.s, cls: "gray" };
+      html += "<tr>" +
+        '<td><span class="fr-badge ' + st.cls + '">' + escapeHtml(st.label) + "</span></td>" +
+        "<td>" + escapeHtml(r.v || "") + (r.p && r.p !== r.v ? '<br><span class="fr-small">' + escapeHtml(r.p) + "</span>" : "") + "</td>" +
+        "<td>" + escapeHtml(r.src || "") + (r.pr ? '<br><span class="fr-small">' + escapeHtml(r.pr) + "</span>" : "") + "</td>" +
+        '<td class="nowrap">' + (r.tt ? formatDate(r.tt) + "<br>" + (mapLink(r.tla, r.tlo, "postaja") || '<span class="fr-small">brez lokacije</span>') : "") + "</td>" +
+        '<td class="num">' + (r.tv !== undefined ? formatNum(r.tv, 2) + " L" : "") +
+          (r.tc !== undefined ? '<br><span class="fr-small">' + formatNum(r.tc, 2) + " " + escapeHtml(r.cu || "") + "</span>" : "") + "</td>" +
+        '<td class="nowrap">' + (r.ft ? formatDate(r.ft) + "<br>" + (mapLink(r.fla, r.flo, "vozilo") || "") : "") + "</td>" +
+        '<td class="num">' + (r.fv !== undefined ? formatNum(r.fv, 2) + " L" : "") + "</td>" +
+        '<td class="num">' + diffCell(r) + "</td>" +
+        '<td class="num">' + distanceCell(r) + "</td>" +
+        '<td class="fr-small">' + escapeHtml(r.n || "") + "</td>" +
+        "</tr>";
+    }
+    body.innerHTML = html;
+    getElement("fr-empty").style.display = rows.length ? "none" : "block";
+    getElement("fr-more").textContent = rows.length > MAX_ROWS ?
+      "Prikazanih je prvih " + MAX_ROWS + " od " + rows.length + " zapisov. Zožite filtre." : "";
+  }
+
+  function renderLegend() {
+    var tol = meta && meta.tolerances ? meta.tolerances : { timeMin: 60, volumePct: 7, locationM: 200 };
+    getElement("fr-legend").innerHTML =
+      "<strong>Pravila ujemanja:</strong> transakcija in zaznano polnjenje istega vozila v razmiku do &plusmn;" +
+      tol.timeMin + " min; razlika v litrih do &plusmn;" + tol.volumePct + " %; vozilo ob polnjenju največ " +
+      tol.locationM + " m od postaje.<br>" +
+      "<strong>Polnjenje ni zaznano</strong> – transakcija s kartice, v vozilu pa Geotab ni zaznal polnjenja. " +
+      "<strong>Polnjenje brez transakcije</strong> – zaznano polnjenje, za katerega ni transakcije s kartice Petrol/DKV. " +
+      "<strong>V obdelavi</strong> – transakcija je mlajša od nekaj ur; Geotab polnjenje zazna z zamikom. " +
+      "AdBlue se ne preverja." +
+      (meta && meta.from ? "<br>Preverjeno obdobje: " + escapeHtml(meta.from) + " – " + escapeHtml(meta.to) + "." : "");
+  }
+
+  function render() {
+    var rows = periodRows();
+    renderTiles(rows);
+    renderTable(filterRows(rows));
+    renderLegend();
+  }
+
+  function onTileClick(event) {
+    var el = event.target;
+    while (el && el !== document && !(el.getAttribute && el.getAttribute("data-tile"))) { el = el.parentNode; }
+    if (!el || el === document) { return; }
+    var key = el.getAttribute("data-tile");
+    activeTile = activeTile === key ? null : key;
+    render();
+  }
+
+  function bindEvents() {
+    if (eventsBound) { return; }
+    eventsBound = true;
+    getElement("fr-period").addEventListener("change", render);
+    getElement("fr-filter-status").addEventListener("change", function () { activeTile = null; render(); });
+    getElement("fr-search").addEventListener("input", render);
+    getElement("fr-refresh").addEventListener("click", function () { loadData(); });
+    getElement("fr-tiles").addEventListener("click", onTileClick);
+    getElement("fr-tiles").addEventListener("keydown", function (event) {
+      if (event.keyCode === 13 || event.keyCode === 32) { event.preventDefault(); onTileClick(event); }
+    });
+  }
+
+  window.geotab = window.geotab || {};
+  window.geotab.addin = window.geotab.addin || {};
+  window.geotab.addin.fuelReconciliation = function () {
+    return {
+      initialize: function (api, state, callback) {
+        try {
+          apiClient = api;
+          bindEvents();
+          setStatus("Pripravljeno.");
+        } catch (e) {
+          console.error("Fuel Reconciliation initialize:", e);
+          setStatus("Napaka pri inicializaciji: " + errorText(e), "error");
+        }
+        // CRITICAL: Always invoke the callback when setup is complete
+        callback();
+      },
+      focus: function (api, state) {
+        apiClient = api;
+        loadData();
+      },
+      blur: function (api, state) {
+        setStatus("Preverjanje polnjenj je začasno ustavljeno.");
+      }
+    };
+  };
+})();
+</script>
+</body>
+</html>

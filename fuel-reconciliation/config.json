@@ -1,0 +1,16 @@
+{
+  "name": "Fuel Reconciliation",
+  "supportEmail": "matej@svetkom.si",
+  "version": "1.0.0",
+  "items": [
+    {
+      "url": "https://GeoRepoSve.github.io/geotab-addins/fuel-reconciliation/?v=1.0.0",
+      "path": "ActivityLink/",
+      "menuName": {
+        "en": "Fuel Reconciliation",
+        "sl": "Preverjanje polnjenj"
+      }
+    }
+  ],
+  "isSigned": false
+}
