@@ -101,6 +101,7 @@
             <option value="VOLUME">Odstopanje litrov</option>
             <option value="LOCATION">Odstopanje lokacije</option>
             <option value="VOLUME_LOCATION">Odstopanje litrov in lokacije</option>
+            <option value="FUEL_TYPE">Odstopanje tipa goriva</option>
             <option value="NO_FILLUP">Polnjenje ni zaznano</option>
             <option value="NO_FILLUP_DATA">Vozilo nima podatkov o polnjenjih</option>
             <option value="NO_TRANSACTION">Polnjenje brez transakcije</option>
@@ -163,13 +164,15 @@
     NO_FILLUP_DATA: { label: "Vozilo nima podatkov o polnjenjih", cls: "gray" },
     NO_TRANSACTION: { label: "Polnjenje brez transakcije", cls: "warn" },
     PENDING: { label: "V obdelavi", cls: "info" },
-    NOT_CHECKED: { label: "Ni preverjeno", cls: "gray" }
+    NOT_CHECKED: { label: "Ni preverjeno", cls: "gray" },
+    FUEL_TYPE: { label: "Odstopanje tipa goriva", cls: "bad" }
   };
-  var ISSUE_STATUSES = ["VOLUME", "LOCATION", "VOLUME_LOCATION", "NO_FILLUP", "NO_TRANSACTION"];
+  var ISSUE_STATUSES = ["FUEL_TYPE", "VOLUME", "LOCATION", "VOLUME_LOCATION", "NO_FILLUP", "NO_TRANSACTION"];
 
   var TILES = [
     { key: "OK", label: "Ujemanje", cls: "ok", statuses: ["OK", "PARTIAL"] },
     { key: "DEV", label: "Odstopanje litrov / lokacije", cls: "bad", statuses: ["VOLUME", "LOCATION", "VOLUME_LOCATION"] },
+    { key: "FUEL_TYPE", label: "Odstopanje tipa goriva", cls: "bad", statuses: ["FUEL_TYPE"] },
     { key: "NO_FILLUP", label: "Polnjenje ni zaznano", cls: "bad", statuses: ["NO_FILLUP"] },
     { key: "NO_TRANSACTION", label: "Polnjenje brez transakcije", cls: "warn", statuses: ["NO_TRANSACTION"] },
     { key: "PENDING", label: "V obdelavi", cls: "info", statuses: ["PENDING"] },
@@ -375,6 +378,18 @@
     return '<span class="' + cls + '">' + formatNum(d, 0) + " m</span>";
   }
 
+  // Gorivo transakcije in tip goriva vozila (Geotab: Powertrain and Fuel Type)
+  function fuelCell(r) {
+    var html = "";
+    if (r.pr) {
+      html += '<br><span class="' + (r.fok === 0 ? "fr-diff-bad" : "fr-small") + '">' + escapeHtml(r.pr) + "</span>";
+    }
+    if (r.vf) {
+      html += '<br><span class="fr-small">vozilo: ' + escapeHtml(r.vf) + "</span>";
+    }
+    return html;
+  }
+
   function renderTable(rows) {
     var body = getElement("fr-table-body");
     var shown = rows.slice(0, MAX_ROWS);
@@ -385,7 +400,7 @@
       html += "<tr>" +
         '<td><span class="fr-badge ' + st.cls + '">' + escapeHtml(st.label) + "</span></td>" +
         "<td>" + escapeHtml(r.v || "") + (r.p && r.p !== r.v ? '<br><span class="fr-small">' + escapeHtml(r.p) + "</span>" : "") + "</td>" +
-        "<td>" + escapeHtml(r.src || "") + (r.pr ? '<br><span class="fr-small">' + escapeHtml(r.pr) + "</span>" : "") + "</td>" +
+        "<td>" + escapeHtml(r.src || "") + fuelCell(r) + "</td>" +
         '<td class="nowrap">' + (r.tt ? formatDate(r.tt) + "<br>" + (mapLink(r.tla, r.tlo, "postaja") || '<span class="fr-small">brez lokacije</span>') : "") + "</td>" +
         '<td class="num">' + (r.tv !== undefined ? formatNum(r.tv, 2) + " L" : "") +
           (r.tc !== undefined ? '<br><span class="fr-small">' + formatNum(r.tc, 2) + " " + escapeHtml(r.cu || "") + "</span>" : "") + "</td>" +
@@ -411,6 +426,9 @@
       "<strong>Polnjenje ni zaznano</strong> – transakcija s kartice, v vozilu pa Geotab ni zaznal polnjenja. " +
       "<strong>Polnjenje brez transakcije</strong> – zaznano polnjenje, za katerega ni transakcije s kartice Petrol/DKV. " +
       "<strong>V obdelavi</strong> – transakcija je mlajša od nekaj ur; Geotab polnjenje zazna z zamikom. " +
+      "<strong>Odstopanje tipa goriva</strong> – natočeno gorivo (npr. bencin) ne ustreza tipu goriva vozila, " +
+      "nastavljenemu v MyGeotab (Vozilo &rarr; Powertrain and Fuel Type); rezultat ostalih preverjanj je v opombi. " +
+      "Če tip goriva vozila ni nastavljen, se ne preverja. " +
       "AdBlue se ne preverja." +
       (meta && meta.from ? "<br>Preverjeno obdobje: " + escapeHtml(meta.from) + " – " + escapeHtml(meta.to) + "." : "");
   }
