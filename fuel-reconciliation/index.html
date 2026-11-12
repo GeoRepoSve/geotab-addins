@@ -384,7 +384,8 @@
     if (r.pr) {
       html += '<br><span class="' + (r.fok === 0 ? "fr-diff-bad" : "fr-small") + '">' + escapeHtml(r.pr) + "</span>";
     }
-    if (r.vf) {
+    // tip goriva vozila samo pri odstopanju tipa goriva
+    if (r.vf && r.s === "FUEL_TYPE") {
       html += '<br><span class="fr-small">vozilo: ' + escapeHtml(r.vf) + "</span>";
     }
     return html;
